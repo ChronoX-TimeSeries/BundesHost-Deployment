@@ -1,0 +1,210 @@
+{
+  "Baden-W\u00fcrttemberg": {
+    "best_model": "sarima",
+    "metrics": {
+      "sarima": {
+        "mape": 4.432283566702018,
+        "mae": 84424.2878804577
+      },
+      "sarimax": {
+        "mape": 4.627662414995356,
+        "mae": 86653.07774575072
+      }
+    }
+  },
+  "Bayern": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 6.033637512753401,
+        "mae": 183937.47742796698
+      },
+      "sarimax": {
+        "mape": 4.701842507936609,
+        "mae": 139251.37068530478
+      }
+    }
+  },
+  "Berlin": {
+    "best_model": "sarima",
+    "metrics": {
+      "sarima": {
+        "mape": 5.821295889257351,
+        "mae": 58501.2106940429
+      },
+      "sarimax": {
+        "mape": 5.858366572283478,
+        "mae": 58781.22048339026
+      }
+    }
+  },
+  "Brandenburg": {
+    "best_model": "sarima",
+    "metrics": {
+      "sarima": {
+        "mape": 2.8997365774992954,
+        "mae": 12752.360766037476
+      },
+      "sarimax": {
+        "mape": 3.394926155488973,
+        "mae": 15042.967587596637
+      }
+    }
+  },
+  "Bremen": {
+    "best_model": "sarima",
+    "metrics": {
+      "sarima": {
+        "mape": 5.166620020016093,
+        "mae": 6342.35606602369
+      },
+      "sarimax": {
+        "mape": 5.207083186938017,
+        "mae": 6362.685527540375
+      }
+    }
+  },
+  "Hamburg": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 4.50394466874581,
+        "mae": 28607.760678648872
+      },
+      "sarimax": {
+        "mape": 3.3212517701183373,
+        "mae": 20948.94824711386
+      }
+    }
+  },
+  "Hessen": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 4.273732038876673,
+        "mae": 52926.76669182264
+      },
+      "sarimax": {
+        "mape": 3.7166014229235613,
+        "mae": 45987.75727833412
+      }
+    }
+  },
+  "Mecklenburg-Vorpommern": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 5.899994876813719,
+        "mae": 39178.70073422225
+      },
+      "sarimax": {
+        "mape": 5.8778646129785095,
+        "mae": 38450.33530533859
+      }
+    }
+  },
+  "Niedersachsen": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 5.292108995541316,
+        "mae": 67705.48124088405
+      },
+      "sarimax": {
+        "mape": 5.167883982057723,
+        "mae": 65148.61749701911
+      }
+    }
+  },
+  "Nordrhein-Westfalen": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 4.527613553916068,
+        "mae": 88612.27984381006
+      },
+      "sarimax": {
+        "mape": 3.438891809481464,
+        "mae": 63173.76164981845
+      }
+    }
+  },
+  "Rheinland-Pfalz": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 5.7637509770203685,
+        "mae": 40884.72022569279
+      },
+      "sarimax": {
+        "mape": 5.05916100640595,
+        "mae": 36602.070297317936
+      }
+    }
+  },
+  "Saarland": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 6.057559803594172,
+        "mae": 6080.859706030212
+      },
+      "sarimax": {
+        "mape": 5.623360966509976,
+        "mae": 5885.353681945363
+      }
+    }
+  },
+  "Sachsen": {
+    "best_model": "sarima",
+    "metrics": {
+      "sarima": {
+        "mape": 6.191144813557736,
+        "mae": 36164.768048755635
+      },
+      "sarimax": {
+        "mape": 6.899442052663433,
+        "mae": 41113.98546804384
+      }
+    }
+  },
+  "Sachsen-Anhalt": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 4.255663076538099,
+        "mae": 11861.709843955503
+      },
+      "sarimax": {
+        "mape": 4.19224303492474,
+        "mae": 11865.395084675363
+      }
+    }
+  },
+  "Schleswig-Holstein": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 5.972173431643569,
+        "mae": 46565.07158452446
+      },
+      "sarimax": {
+        "mape": 5.890750224062285,
+        "mae": 43349.50995911004
+      }
+    }
+  },
+  "Th\u00fcringen": {
+    "best_model": "sarimax",
+    "metrics": {
+      "sarima": {
+        "mape": 3.849278103172269,
+        "mae": 11681.229004660234
+      },
+      "sarimax": {
+        "mape": 3.8051659835420297,
+        "mae": 11457.692884641097
+      }
+    }
+  }
+}

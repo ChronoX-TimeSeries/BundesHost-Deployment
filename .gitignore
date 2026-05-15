@@ -140,7 +140,3 @@ app/streamlit_app_v*.py
 app/streamlit_app_v*.py
 
 
-# Trained models (regenerated locally via `python -m modeling.train`)
-models/*.pkl
-models/best_models.json
-!models/.gitkeep

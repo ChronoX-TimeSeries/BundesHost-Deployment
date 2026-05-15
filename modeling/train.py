@@ -1,4 +1,4 @@
-import joblib
+#import joblib
 
 import statsmodels.api as sm
 
@@ -99,8 +99,8 @@ def retrain_all_states():
             )
 
             model_path = MODEL_DIR / f"{state}_{model_type}.pkl"
-            joblib.dump(fitted, model_path)
-
+            #joblib.dump(fitted, model_path)
+            fitted.save(str(model_path), remove_data=True)
             print(f"  → {model_type:8s} converged={converged}  saved={model_path.name}")
 
         print()
