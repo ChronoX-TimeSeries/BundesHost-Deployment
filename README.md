@@ -236,31 +236,41 @@ Used to estimate whether a region can handle a given event.
 ### 🔧 Installation
 
 ```bash
-make setup
-```
-
-Or manually:
-
-```bash
+# 1. Set Python version (recommended via pyenv)
 pyenv local 3.11.3
+
+# 2. Create and activate virtual environment
 python -m venv .venv
 source .venv/bin/activate
+
+# 3. Install dependencies
 pip install --upgrade pip
-pip install -r requirements_dev.txt
+pip install -r requirements.txt
 ```
 
 ---
 
-### 📦 Requirements
+### ⚙️ Generate Models (after installation)
 
+Trained models and the best-model selection are **not** committed to Git
+(too large). After cloning, regenerate them locally:
 
-All dependencies required to run the application are listed in:
+```bash
+# Train SARIMA + SARIMAX for all 16 states (~3–5 minutes)
+python -m modeling.train
 
-- `requirements.txt`
+# Evaluate both models on the test set, pick the best per state,
+# and save the selection to models/best_models.json
+python -m modeling.evaluate
+```
+
+This will create:
+- `models/{state}_sarima.pkl` and `models/{state}_sarimax.pkl` (32 files total)
+- `models/best_models.json` (best model per state, used by the Streamlit app)
 
 ---
 
-## ▶️ Usage
+### ▶️ Run the App
 
 ```bash
 streamlit run app/streamlit_app.py
@@ -273,32 +283,36 @@ streamlit run app/streamlit_app.py
 The project is organized in a modular way, separating data processing, modeling, and deployment:
 
 ```
-BundesHost/
+BundesHost-Deployment/
 │
-├── src/                # Core project modules (data, modeling, app logic)
-│
-├── app/                # Streamlit dashboard
+├── app/                       # Streamlit dashboard
 │   └── streamlit_app.py
 │
 ├── data/
-│   ├── raw/            # Original data
-│   └── processed/      # Cleaned dataset (tourism_long.csv)
+│   ├── raw/                   # Original Destatis CSV
+│   ├── processed/             # Cleaned dataset (tourism_long.csv)
+│   └── 2_hoch.geo.json        # GeoJSON for Germany map
 │
-├── modeling/           # Training and forecasting logic
-│   ├── train.py
-│   ├── predict.py
-│   ├── feature_engineering.py
-│   └── config.py
+├── modeling/                  # Core modeling package
+│   ├── config.py              # Paths, states, COVID period, model orders
+│   ├── data_pipeline.py       # Load + reshape raw Destatis CSV
+│   ├── feature_engineering.py # State time series + COVID dummy
+│   ├── train.py               # Train SARIMA + SARIMAX per state
+│   ├── evaluate.py            # Evaluate + select best model → JSON
+│   └── predict.py             # Load best model + forecast
 │
-├── models/             # Saved SARIMA/SARIMAX models per state
+├── models/                    # Saved models + best_models.json (gitignored)
 │
-├── notebooks/          # EDA & experimentation
+├── notebooks/                 # EDA & experimentation
+│   ├── 00_data_understanding.ipynb
+│   ├── 01_eda_tourism_germany.ipynb
+│   └── 02_time_series_modeling.ipynb
 │
-├── images/             # Figures for README
+├── images/                    # Figures for README
 │
-├── Makefile            # Setup shortcuts
-├── requirements.txt    # Project dependencies
-├── runtime.txt         # Deployment environment (e.g. Streamlit Cloud)
+├── Makefile                   # Setup shortcuts
+├── requirements.txt           # Project dependencies
+├── runtime.txt                # Deployment environment (e.g. Streamlit Cloud)
 │
 └── README.md
 ```
@@ -325,7 +339,7 @@ SPICED Academy · 2026
 
 ## 📎 Links
 
-- GitHub Repository: *(https://github.com/ChronoX-TimeSeries/BundesHost/tree/main)*  
+- GitHub Repository: *(https://github.com/ChronoX-TimeSeries/BundesHost-Deployment)*  
 - Streamlit App: *(https://chronox-timeseries.streamlit.app)*  
 
 ---
