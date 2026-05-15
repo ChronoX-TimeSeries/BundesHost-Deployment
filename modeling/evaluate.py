@@ -2,7 +2,7 @@ import json
 
 import numpy as np
 
-from .config import MODEL_DIR, MODEL_ORDERS
+from .config import MODEL_DIR, MODEL_ORDERS, BEST_MODELS_PATH
 from .data_pipeline import get_tourism_data
 from .feature_engineering import build_state_series, create_corona_dummy
 from .train import train_sarima, train_sarimax
@@ -13,7 +13,17 @@ from .train import train_sarima, train_sarimax
 # ==================================================
 
 TEST_SIZE = 12   # last 12 months as test set
-BEST_MODELS_PATH = MODEL_DIR / "best_models.json"
+
+def load_best_models():
+    """Load the saved best-model selection from JSON."""
+
+    if not BEST_MODELS_PATH.exists():
+        raise FileNotFoundError(
+            f"Best models file not found at {BEST_MODELS_PATH}. "
+            f"Run `python -m modeling.evaluate` first."
+        )
+
+    return json.loads(BEST_MODELS_PATH.read_text())
 
 
 # ==================================================

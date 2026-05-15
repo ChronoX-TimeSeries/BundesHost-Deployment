@@ -1,10 +1,8 @@
-#import joblib
+import joblib
 import pandas as pd
-from statsmodels.tsa.statespace.sarimax import SARIMAXResults
-from statsmodels.tsa.arima.model import ARIMAResults
 
 from .config import MODEL_DIR
-from .evaluate import load_best_models
+from .config import load_best_models
 from .feature_engineering import create_corona_dummy
 
 
@@ -36,10 +34,7 @@ def load_model(state_name):
             f"Run `python -m modeling.train` to regenerate models."
         )
 
-    if "sarimax" in model_path.name.lower():
-        model = SARIMAXResults.load(str(model_path))
-    else:
-        model = ARIMAResults.load(str(model_path))
+    model = joblib.load(model_path)
 
     return model, model_path.name
 
@@ -51,8 +46,6 @@ def load_model(state_name):
 def build_future_exog(last_date, horizon):
     """
     Build a future COVID dummy aligned with the forecast horizon.
-    Since the forecast horizon is always in the future (post-COVID),
-    the dummy will be all zeros — but with the correct index and shape.
     """
 
     future_index = pd.date_range(

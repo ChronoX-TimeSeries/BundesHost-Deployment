@@ -138,4 +138,23 @@ MODEL_ORDERS = {
         "sarimax": ((1, 1, 2), (1, 1, 1, 12)),
     },
 }
+import json
 
+
+# ==================================================
+# Best models JSON file
+# ==================================================
+
+BEST_MODELS_PATH = MODEL_DIR / "best_models.json"
+
+
+def load_best_models():
+    """Load the saved best-model selection from JSON."""
+
+    if not BEST_MODELS_PATH.exists():
+        raise FileNotFoundError(
+            f"Best models file not found at {BEST_MODELS_PATH}. "
+            f"Run `python -m modeling.evaluate` first."
+        )
+
+    return json.loads(BEST_MODELS_PATH.read_text())

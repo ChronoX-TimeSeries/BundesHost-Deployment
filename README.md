@@ -250,24 +250,20 @@ pip install -r requirements.txt
 
 ---
 
-### ⚙️ Generate Models (after installation)
+### ⚙️ Regenerate Models (optional)
 
-Trained models and the best-model selection are **not** committed to Git
-(too large). After cloning, regenerate them locally:
+Trained models and the best-model selection are committed to the repo,
+so the Streamlit app works immediately after cloning.
+
+If you want to retrain (e.g. after updating the data), run:
 
 ```bash
-# Train SARIMA + SARIMAX for all 16 states (~3–5 minutes)
-python -m modeling.train
-
-# Evaluate both models on the test set, pick the best per state,
-# and save the selection to models/best_models.json
+# 1. Evaluate both SARIMA and SARIMAX on the test set, pick the best per state
 python -m modeling.evaluate
+
+# 2. Retrain the best model on the full dataset and save it
+python -m modeling.train
 ```
-
-This will create:
-- `models/{state}_sarima.pkl` and `models/{state}_sarimax.pkl` (32 files total)
-- `models/best_models.json` (best model per state, used by the Streamlit app)
-
 ---
 
 ### ▶️ Run the App

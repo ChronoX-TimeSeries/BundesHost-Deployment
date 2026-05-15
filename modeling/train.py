@@ -1,9 +1,10 @@
-#import joblib
+import joblib
 
 import statsmodels.api as sm
 
 from .config import MODEL_DIR, MODEL_ORDERS
 from .data_pipeline import get_tourism_data
+from .config import load_best_models
 from .feature_engineering import build_state_series, create_corona_dummy
 
 
@@ -45,65 +46,67 @@ def train_sarimax(series, exog, order, seasonal_order):
 
 
 # ==================================================
-# Train both models for one state
+# Train best model for one state (based on best_models.json)
 # ==================================================
 
-def train_state(series, state, orders):
+def train_best_for_state(series, state, orders, best_type):
     """
-    Train both SARIMA and SARIMAX for a single state.
-    Returns a dict: {"sarima": fitted_model, "sarimax": fitted_model}.
+    Train ONLY the best model (SARIMA or SARIMAX) for a single state
+    on the full data.
     """
 
-    results = {}
+    order, seasonal_order = orders[best_type]
 
-    # SARIMA
-    order, seasonal_order = orders["sarima"]
-    results["sarima"] = train_sarima(series, order, seasonal_order)
+    if best_type == "sarimax":
+        exog = create_corona_dummy(series.index)
+        fitted = train_sarimax(series, exog, order, seasonal_order)
+    else:
+        fitted = train_sarima(series, order, seasonal_order)
 
-    # SARIMAX
-    order, seasonal_order = orders["sarimax"]
-    exog = create_corona_dummy(series.index)
-    results["sarimax"] = train_sarimax(series, exog, order, seasonal_order)
-
-    return results
+    return fitted
 
 
 # ==================================================
-# Retrain all states (both SARIMA + SARIMAX)
+# Retrain best model for all states
 # ==================================================
 
 def retrain_all_states():
     """
-    Train BOTH SARIMA and SARIMAX for every state and save them.
-    Model selection happens later in evaluate.py.
+    For every state, train the best model (per best_models.json) on the
+    full data and save it as a .pkl file.
+
+    Prerequisite: best_models.json must exist (run `python -m modeling.evaluate` first).
     """
 
-    print("START RETRAINING...\n")
+    print("START RETRAINING (best models only)...\n")
 
+    best_models = load_best_models()
     df = get_tourism_data()
 
     for state in MODEL_ORDERS.keys():
 
-        print(f"Retraining {state}...")
+        if state not in best_models:
+            print(f"  ⚠️  Skipping {state} (not in best_models.json)")
+            continue
+
+        best_type = best_models[state]["best_model"]
+
+        print(f"Retraining {state} ({best_type})...")
 
         series = build_state_series(df, state)
         orders = MODEL_ORDERS[state]
 
-        fitted_models = train_state(series, state, orders)
+        fitted = train_best_for_state(series, state, orders, best_type)
 
-        for model_type, fitted in fitted_models.items():
+        converged = (
+            fitted.mle_retvals.get("converged", None)
+            if hasattr(fitted, "mle_retvals") else None
+        )
 
-            converged = (
-                fitted.mle_retvals.get("converged", None)
-                if hasattr(fitted, "mle_retvals") else None
-            )
+        model_path = MODEL_DIR / f"{state}_{best_type}.pkl"
+        joblib.dump(fitted, model_path)
 
-            model_path = MODEL_DIR / f"{state}_{model_type}.pkl"
-            #joblib.dump(fitted, model_path)
-            fitted.save(str(model_path), remove_data=True)
-            print(f"  → {model_type:8s} converged={converged}  saved={model_path.name}")
-
-        print()
+        print(f"  → converged={converged}  saved={model_path.name}\n")
 
     print("DONE.")
 
