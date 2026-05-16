@@ -19,10 +19,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from modeling.data_pipeline import get_tourism_data
-from modeling.feature_engineering import build_state_series
-from modeling.predict import forecast_state
-from modeling.config import MODEL_DIR
+from bundeshost.data_pipeline import get_tourism_data
+from bundeshost.feature_engineering import build_state_series
+from bundeshost.predict import forecast_state
+from bundeshost.config import MODEL_DIR
 # --------------------------------------------------
 # General settings
 
@@ -61,7 +61,7 @@ RED_BORDER   = "#FCA5A5"
 # --------------------------------------------------
 # Model metadata (UI only)
 
-from modeling.config import MODEL_ORDERS
+from bundeshost.config import MODEL_ORDERS
 
 # --------------------------------------------------
 # Static UI lists
@@ -78,7 +78,7 @@ MONTHS = [
 # Data paths
 
 DATA_PATH  = BASE_DIR / "data" / "processed" / "tourism_long.csv"
-from modeling.config import MODEL_DIR
+from bundeshost.config import MODEL_DIR
 
 
 # --------------------------------------------------
@@ -373,8 +373,8 @@ def load_data() -> pd.DataFrame:
 # --------------------------------------------------
 # Import forecasting logic (from predict.py)
 
-from modeling.predict import forecast_state
-from modeling.feature_engineering import build_state_series
+from bundeshost.predict import forecast_state
+from bundeshost.feature_engineering import build_state_series
 
 # --------------------------------------------------
 # Build time series (ONLY for plotting history)
