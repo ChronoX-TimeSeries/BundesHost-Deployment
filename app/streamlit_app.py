@@ -1,29 +1,21 @@
 """
-BundesHost — Streamlit Dashboard
-ChronoX-TimeSeries · SPICED Academy Capstone 2026
+BundesHost Streamlit App.
+
+Tourism forecasting and hosting capacity analysis for German states.
 """
 
 import warnings
-import sys
-from pathlib import Path
-
-# --------------------------------------------------
-# Add project root to path (for modeling imports)
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR))
-
-# --------------------------------------------------
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from bundeshost.config import MODEL_ORDERS
 from bundeshost.data_pipeline import get_tourism_data
 from bundeshost.feature_engineering import build_state_series
 from bundeshost.predict import forecast_state
-from bundeshost.config import MODEL_DIR
-# --------------------------------------------------
+
+# ----------------------------------------------------------------------------------------------------
 # General settings
 
 warnings.filterwarnings("ignore")
@@ -32,36 +24,34 @@ warnings.filterwarnings("ignore")
 # --------------------------------------------------
 # Colours
 
-BG           = "#F7F8FA"
-WHITE        = "#FFFFFF"
-SURFACE_2    = "#F0F2F5"
-BORDER       = "#E4E8EE"
-BORDER_DARK  = "#C8D0DC"
-TEXT         = "#0F1923"
-TEXT_MID     = "#4A5568"
-TEXT_DIM     = "#8A97A8"
-ACCENT       = "#1A6B5A"
+BG = "#F7F8FA"
+WHITE = "#FFFFFF"
+SURFACE_2 = "#F0F2F5"
+BORDER = "#E4E8EE"
+BORDER_DARK = "#C8D0DC"
+TEXT = "#0F1923"
+TEXT_MID = "#4A5568"
+TEXT_DIM = "#8A97A8"
+ACCENT = "#1A6B5A"
 ACCENT_LIGHT = "#EAF4F1"
-ACCENT_MID   = "#2A9D8F"
-NAVY         = "#1B2A3B"
+ACCENT_MID = "#2A9D8F"
+NAVY = "#1B2A3B"
 
-GREEN_OK     = "#16A34A"
-GREEN_BG     = "#F0FDF4"
+GREEN_OK = "#16A34A"
+GREEN_BG = "#F0FDF4"
 GREEN_BORDER = "#86EFAC"
 
-AMBER        = "#D97706"
-AMBER_BG     = "#FFFBEB"
+AMBER = "#D97706"
+AMBER_BG = "#FFFBEB"
 AMBER_BORDER = "#FCD34D"
 
-RED          = "#DC2626"
-RED_BG       = "#FEF2F2"
-RED_BORDER   = "#FCA5A5"
+RED = "#DC2626"
+RED_BG = "#FEF2F2"
+RED_BORDER = "#FCA5A5"
 
 
 # --------------------------------------------------
 # Model metadata (UI only)
-
-from bundeshost.config import MODEL_ORDERS
 
 # --------------------------------------------------
 # Static UI lists
@@ -69,16 +59,19 @@ from bundeshost.config import MODEL_ORDERS
 STATES = sorted(MODEL_ORDERS.keys())
 
 MONTHS = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ]
-
-
-# --------------------------------------------------
-# Data paths
-
-DATA_PATH  = BASE_DIR / "data" / "processed" / "tourism_long.csv"
-from bundeshost.config import MODEL_DIR
 
 
 # --------------------------------------------------
@@ -92,7 +85,8 @@ st.set_page_config(
 )
 
 # ── CSS ─────────────────────────────────────────────
-st.markdown(f"""
+st.markdown(
+    f"""
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
@@ -358,23 +352,23 @@ st.markdown(f"""
   hr {{ border-color: {BORDER} !important; }}
   [data-testid="stDataFrame"] {{ border: 1.5px solid {BORDER}; border-radius: 10px; }}
 </style>
-""", unsafe_allow_html=True)
-
+""",
+    unsafe_allow_html=True,
+)
 
 
 # ── Helpers ─────────────────────────────────────────
 
+
 @st.cache_data(show_spinner=False)
 def load_data() -> pd.DataFrame:
-    df = pd.read_csv(DATA_PATH, parse_dates=["date"])
+    df = get_tourism_data()
     return df.sort_values("date").reset_index(drop=True)
 
 
 # --------------------------------------------------
 # Import forecasting logic (from predict.py)
 
-from bundeshost.predict import forecast_state
-from bundeshost.feature_engineering import build_state_series
 
 # --------------------------------------------------
 # Build time series (ONLY for plotting history)
@@ -383,14 +377,12 @@ from bundeshost.feature_engineering import build_state_series
 # --------------------------------------------------
 # Hosting Capacity Score
 
+
 def compute_hcs(event_size: int, peak: float) -> float:
     if event_size <= 0 or peak <= 0:
         return 50.0
 
-    return round(
-        min(100.0, max(0.0, (peak / event_size) * 50)),
-        1
-    )
+    return round(min(100.0, max(0.0, (peak / event_size) * 50)), 1)
 
 
 def hcs_meta(score: float) -> tuple:
@@ -405,6 +397,7 @@ def hcs_meta(score: float) -> tuple:
 # --------------------------------------------------
 # Formatting helper (UI only)
 
+
 def fmt(v: float) -> str:
     if v >= 1_000_000:
         return f"{v/1_000_000:.2f}M"
@@ -413,7 +406,9 @@ def fmt(v: float) -> str:
 
     return f"{v:.0f}"
 
+
 # ── Charts ───────────────────────────────────────────
+
 
 def make_forecast_chart(series, fcast, state, horizon):
 
@@ -428,7 +423,6 @@ def make_forecast_chart(series, fcast, state, horizon):
     # Convert PeriodIndex → Timestamp (safe)
     hdates = pd.to_datetime(tail.index)
 
-
     # --------------------------------------------------
     # Create figure
 
@@ -437,13 +431,15 @@ def make_forecast_chart(series, fcast, state, horizon):
     # --------------------------------------------------
     # Historical line
 
-    fig.add_trace(go.Scatter(
-        x=hdates,
-        y=tail.values,
-        mode="lines",
-        name="Historical",
-        line=dict(color=ACCENT_MID, width=2.5),
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=hdates,
+            y=tail.values,
+            mode="lines",
+            name="Historical",
+            line=dict(color=ACCENT_MID, width=2.5),
+        )
+    )
 
     # --------------------------------------------------
     # Forecast (smooth connection)
@@ -465,84 +461,78 @@ def make_forecast_chart(series, fcast, state, horizon):
         first_forecast_date = fdates[0]
         first_forecast_value = fcast["forecast"].iloc[0]
 
-        fig.add_trace(go.Scatter(
-          x=[last_hist_date, first_forecast_date],
-          y=[last_hist_value, first_forecast_value],
-          mode="lines",
-          line=dict(color=ACCENT_MID, width=2.5),
-          showlegend=False,
-      ))
+        fig.add_trace(
+            go.Scatter(
+                x=[last_hist_date, first_forecast_date],
+                y=[last_hist_value, first_forecast_value],
+                mode="lines",
+                line=dict(color=ACCENT_MID, width=2.5),
+                showlegend=False,
+            )
+        )
         # --------------------------------------------------
         # Forecast line
 
-        fig.add_trace(go.Scatter(
-          x=fdates,
-          y=fcast["forecast"],
-          mode="lines+markers",
-          name="Forecast",
-          line=dict(color=NAVY, width=2.5, dash="dash"),
-          marker=dict(size=5, color=NAVY),
-      ))
+        fig.add_trace(
+            go.Scatter(
+                x=fdates,
+                y=fcast["forecast"],
+                mode="lines+markers",
+                name="Forecast",
+                line=dict(color=NAVY, width=2.5, dash="dash"),
+                marker=dict(size=5, color=NAVY),
+            )
+        )
 
-      # ── Split line (optional) ────────
+        # ── Split line (optional) ────────
         split_date = fdates.min()
 
         fig.add_shape(
-           type="line",
-           x0=split_date,
-           x1=split_date,
-           y0=0,
-           y1=1,
-           xref="x",
-           yref="paper",
-           line=dict(color="gray", dash="dot", width=1),
-           opacity=0.4
+            type="line",
+            x0=split_date,
+            x1=split_date,
+            y0=0,
+            y1=1,
+            xref="x",
+            yref="paper",
+            line=dict(color="gray", dash="dot", width=1),
+            opacity=0.4,
         )
 
         fig.add_annotation(
-           x=split_date,
-           y=1,
-           yref="paper",
-           text="Forecast starts",
-           showarrow=False,
-           yshift=10,
-           font=dict(size=10, color="gray")
-       )
+            x=split_date,
+            y=1,
+            yref="paper",
+            text="Forecast starts",
+            showarrow=False,
+            yshift=10,
+            font=dict(size=10, color="gray"),
+        )
     # --------------------------------------------------
     # Layout
 
     fig.update_layout(
         title=dict(
             text=f"{state} — {horizon}-Month Tourist Arrivals Forecast",
-            font=dict(color=TEXT_MID, size=13, family="DM Sans")
+            font=dict(color=TEXT_MID, size=13, family="DM Sans"),
         ),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor=SURFACE_2,
         font=dict(color=TEXT_MID, size=11, family="DM Mono"),
-
         xaxis=dict(
             gridcolor=BORDER,
             tickfont=dict(color=TEXT_DIM),
             title=None,
             linecolor=BORDER,
-            range=[
-                hdates.min(),
-                fdates.max() if not fcast.empty else hdates.max()
-            ]
+            range=[hdates.min(), fdates.max() if not fcast.empty else hdates.max()],
         ),
-
         yaxis=dict(
             gridcolor=BORDER,
             tickfont=dict(color=TEXT_DIM),
             title="Monthly Arrivals",
-            tickformat=","
+            tickformat=",",
         ),
-
-        legend=dict(
-            font=dict(color=TEXT_MID, size=10),
-            bgcolor="rgba(0,0,0,0)"
-        ),
-
+        legend=dict(font=dict(color=TEXT_MID, size=10), bgcolor="rgba(0,0,0,0)"),
         margin=dict(l=0, r=0, t=50, b=0),
         height=360,
         hovermode="x unified",
@@ -561,42 +551,31 @@ def make_allstates_chart(df):
 
     for state in STATES:
 
-        state_data = (
-            df[df["state"] == state]
-            .sort_values("date")["arrivals"]
-        )
+        state_data = df[df["state"] == state].sort_values("date")["arrivals"]
 
         if len(state_data) > 0:
-            rows.append({
-                "State": state,
-                "Arrivals": float(state_data.iloc[-1])
-            })
+            rows.append({"State": state, "Arrivals": float(state_data.iloc[-1])})
 
-    adf = (
-        pd.DataFrame(rows)
-        .sort_values("Arrivals", ascending=True)
-    )
-
+    adf = pd.DataFrame(rows).sort_values("Arrivals", ascending=True)
 
     # --------------------------------------------------
     # Create bar chart
 
-    fig = go.Figure(go.Bar(
-        x=adf["Arrivals"],
-        y=adf["State"],
-        orientation="h",
-
-        marker=dict(
-            color=adf["Arrivals"],
-            colorscale=[[0, ACCENT_LIGHT], [1, ACCENT]],
-            line=dict(color="rgba(0,0,0,0)")
-        ),
-
-        text=adf["Arrivals"].apply(fmt),
-        textfont=dict(color=TEXT, size=10),
-        textposition="outside",
-    ))
-
+    fig = go.Figure(
+        go.Bar(
+            x=adf["Arrivals"],
+            y=adf["State"],
+            orientation="h",
+            marker=dict(
+                color=adf["Arrivals"],
+                colorscale=[[0, ACCENT_LIGHT], [1, ACCENT]],
+                line=dict(color="rgba(0,0,0,0)"),
+            ),
+            text=adf["Arrivals"].apply(fmt),
+            textfont=dict(color=TEXT, size=10),
+            textposition="outside",
+        )
+    )
 
     # --------------------------------------------------
     # Layout
@@ -604,26 +583,18 @@ def make_allstates_chart(df):
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor=SURFACE_2,
-
         font=dict(color=TEXT_MID, family="DM Mono"),
-
         xaxis=dict(
-            gridcolor=BORDER,
-            tickformat=",",
-            tickfont=dict(color=TEXT_DIM, size=9),
-            title=None
+            gridcolor=BORDER, tickformat=",", tickfont=dict(color=TEXT_DIM, size=9), title=None
         ),
-
-        yaxis=dict(
-            tickfont=dict(color=TEXT, size=9)
-        ),
-
+        yaxis=dict(tickfont=dict(color=TEXT, size=9)),
         margin=dict(l=0, r=60, t=10, b=0),
         height=500,
         showlegend=False,
     )
 
     return fig
+
 
 # ── Nav ──────────────────────────────────────────────
 st.markdown(
@@ -640,7 +611,8 @@ st.markdown(
 )
 
 # ── Hero ─────────────────────────────────────────────
-st.markdown(f"""
+st.markdown(
+    """
 <div class="bh-hero">
   <div class="bh-hero-overlay"></div>
   <div class="bh-hero-content">
@@ -658,7 +630,9 @@ st.markdown(f"""
     </div>
   </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 ## ── Query panel ──────────────────────────────────────
 
@@ -669,16 +643,13 @@ c1, c2, c3 = st.columns([3, 3, 1])
 
 with c1:
     selected_state = st.selectbox(
-        "Federal State",
-        STATES,
-        index=STATES.index("Berlin") if "Berlin" in STATES else 0
+        "Federal State", STATES, index=STATES.index("Berlin") if "Berlin" in STATES else 0
     )
 
 with c2:
     horizon_choice = st.selectbox(
         "Forecast Horizon (months)",
-        ["1 month", "3 months", "5 months", "7 months",
-         "9 months", "12 months", "Custom"],
+        ["1 month", "3 months", "5 months", "7 months", "9 months", "12 months", "Custom"],
         index=5,
     )
 
@@ -732,9 +703,8 @@ if analyze:
             df = load_data()
             data_ok = True
         except FileNotFoundError:
-            st.error(f"Data not found at `{DATA_PATH}`.")
+            st.error("Could not load tourism data from Destatis CSV.")
             data_ok = False
-
 
     # --------------------------------------------------
     # Forecast pipeline
@@ -753,7 +723,6 @@ if analyze:
         fcast = pd.DataFrame()
         latest = 0.0
 
-
     # --------------------------------------------------
     # Peak calculation
 
@@ -765,18 +734,17 @@ if analyze:
         peak = latest
         peak_month = "Latest"
 
-
     # --------------------------------------------------
     # Score
 
     score = compute_hcs(event_size, peak_value)
     emoji, label, css = hcs_meta(score)
 
-
     # --------------------------------------------------
     # Metric cards (only 2 cards, no banner)
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
 <div class="bh-cards">
   <div class="bh-card">
     <div class="bh-card-label">Latest Arrivals (monthly)</div>
@@ -789,8 +757,9 @@ if analyze:
     <div class="bh-card-sub">Peak at {peak_month}</div>
   </div>
 </div>
-""", unsafe_allow_html=True)
-
+""",
+        unsafe_allow_html=True,
+    )
 
     # --------------------------------------------------
     # Forecast Chart (full width, no gauge)
@@ -805,7 +774,7 @@ if analyze:
 
     # Legend card (below chart)
     st.markdown(
-        f"""
+        """
         <div class="bh-legend">
             <div class="bh-legend-item">
                 <div class="bh-legend-line bh-legend-line-solid"></div>
@@ -820,7 +789,6 @@ if analyze:
         unsafe_allow_html=True,
     )
 
-
     # --------------------------------------------------
     # Forecast table
 
@@ -833,15 +801,10 @@ if analyze:
         # format date
         disp["date"] = pd.to_datetime(disp["date"]).dt.strftime("%b %Y")
 
-        disp.columns = [
-           "Month",
-           "Forecast",
-           "Lower CI (80%)",
-           "Upper CI (80%)"
-        ]
+        disp.columns = ["Month", "Forecast", "Lower CI (80%)", "Upper CI (80%)"]
 
         for col in disp.columns[1:]:
-           disp[col] = disp[col].apply(lambda x: f"{x:,.0f}")
+            disp[col] = disp[col].apply(lambda x: f"{x:,.0f}")
 
         st.dataframe(disp, use_container_width=True, hide_index=True)
 
@@ -850,12 +813,11 @@ if analyze:
 
     st.markdown(
         '<div class="bh-scope"><strong>Scope note:</strong> The Hosting Capacity Score '
-        'is derived from time-series forecasts of tourist arrivals only. Accommodation '
-        'stock, transport links, and venue capacity are planned stretch goals. '
-        'Treat results as indicative, not operational.</div>',
+        "is derived from time-series forecasts of tourist arrivals only. Accommodation "
+        "stock, transport links, and venue capacity are planned stretch goals. "
+        "Treat results as indicative, not operational.</div>",
         unsafe_allow_html=True,
     )
-
 
     # --------------------------------------------------
     # Alternative states (new design with gradient colors)
@@ -867,10 +829,7 @@ if analyze:
 
     alt = sorted(
         [
-            {
-                "State": s,
-                "Latest": float(build_state_series(df, s).iloc[-1])
-            }
+            {"State": s, "Latest": float(build_state_series(df, s).iloc[-1])}
             for s in STATES
             if s != selected_state and len(build_state_series(df, s))
         ],
@@ -894,15 +853,14 @@ if analyze:
                 f'<div class="bh-alt-card-v2">'
                 f'<div class="bh-alt-card-v2-left" style="background: {bg_color};">'
                 f'<div class="bh-alt-card-v2-rank">#{i+1}</div>'
-                f'</div>'
+                f"</div>"
                 f'<div class="bh-alt-card-v2-right">'
                 f'<div class="bh-alt-card-v2-name">{row["State"]}</div>'
                 f'<div class="bh-alt-card-v2-sub">Latest: {fmt(row["Latest"])}/mo</div>'
-                f'</div>'
-                f'</div>',
+                f"</div>"
+                f"</div>",
                 unsafe_allow_html=True,
             )
-
 
     # --------------------------------------------------
     # All states chart
@@ -919,9 +877,12 @@ if analyze:
     )
 
 # ── Footer ────────────────────────────────────────────
-st.markdown("""
+st.markdown(
+    """
 <div class="bh-footer">
   <strong>BundesHost</strong> · ChronoX-TimeSeries · SPICED Academy Capstone 2026<br>
   <span style="font-size:11px;">Python · Streamlit · Statsmodels · Plotly</span>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)

@@ -1,14 +1,13 @@
 import joblib
 import pandas as pd
 
-from .config import MODEL_DIR
-from .config import load_best_models
+from .config import MODEL_DIR, load_best_models
 from .feature_engineering import create_corona_dummy
-
 
 # ==================================================
 # Load model for a given state
 # ==================================================
+
 
 def load_model(state_name):
     """
@@ -43,6 +42,7 @@ def load_model(state_name):
 # Build future exogenous variable
 # ==================================================
 
+
 def build_future_exog(last_date, horizon):
     """
     Build a future COVID dummy aligned with the forecast horizon.
@@ -60,6 +60,7 @@ def build_future_exog(last_date, horizon):
 # ==================================================
 # Forecast function
 # ==================================================
+
 
 def forecast_state(state_name, horizon):
     """
@@ -100,11 +101,13 @@ def forecast_state(state_name, horizon):
     # --------------------------------------------------
     # Build final DataFrame
 
-    forecast_df = pd.DataFrame({
-        "date": dates,
-        "forecast": mean.values,
-        "lower_ci": conf.iloc[:, 0].values,
-        "upper_ci": conf.iloc[:, 1].values,
-    })
+    forecast_df = pd.DataFrame(
+        {
+            "date": dates,
+            "forecast": mean.values,
+            "lower_ci": conf.iloc[:, 0].values,
+            "upper_ci": conf.iloc[:, 1].values,
+        }
+    )
 
     return forecast_df

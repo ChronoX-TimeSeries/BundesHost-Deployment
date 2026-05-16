@@ -1,11 +1,11 @@
 import pandas as pd
 
-from .config import COVID_START, COVID_END
-
+from .config import COVID_END, COVID_START
 
 # ==================================================
 # Build univariate state time series
 # ==================================================
+
 
 def build_state_series(df, state, target="arrivals"):
     """
@@ -31,6 +31,7 @@ def build_state_series(df, state, target="arrivals"):
 # COVID dummy for SARIMAX
 # ==================================================
 
+
 def create_corona_dummy(index):
     """
     Create COVID-19 dummy variable for SARIMAX models.
@@ -38,10 +39,7 @@ def create_corona_dummy(index):
     """
 
     dummy = pd.Series(
-        (
-            (index >= pd.Timestamp(COVID_START))
-            & (index <= pd.Timestamp(COVID_END))
-        ).astype(int),
+        ((index >= pd.Timestamp(COVID_START)) & (index <= pd.Timestamp(COVID_END))).astype(int),
         index=index,
         name="corona_dummy",
     )

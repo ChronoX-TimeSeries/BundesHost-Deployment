@@ -1,16 +1,14 @@
 import joblib
-
 import statsmodels.api as sm
 
-from .config import MODEL_DIR, MODEL_ORDERS
+from .config import MODEL_DIR, MODEL_ORDERS, load_best_models
 from .data_pipeline import get_tourism_data
-from .config import load_best_models
 from .feature_engineering import build_state_series, create_corona_dummy
-
 
 # ==================================================
 # Train a single SARIMA model
 # ==================================================
+
 
 def train_sarima(series, order, seasonal_order):
     """
@@ -30,6 +28,7 @@ def train_sarima(series, order, seasonal_order):
 # Train a single SARIMAX model with COVID dummy
 # ==================================================
 
+
 def train_sarimax(series, exog, order, seasonal_order):
     """
     Fit a SARIMAX model on the full series with COVID dummy as exog.
@@ -48,6 +47,7 @@ def train_sarimax(series, exog, order, seasonal_order):
 # ==================================================
 # Train best model for one state (based on best_models.json)
 # ==================================================
+
 
 def train_best_for_state(series, state, orders, best_type):
     """
@@ -69,6 +69,7 @@ def train_best_for_state(series, state, orders, best_type):
 # ==================================================
 # Retrain best model for all states
 # ==================================================
+
 
 def retrain_all_states():
     """
@@ -99,8 +100,7 @@ def retrain_all_states():
         fitted = train_best_for_state(series, state, orders, best_type)
 
         converged = (
-            fitted.mle_retvals.get("converged", None)
-            if hasattr(fitted, "mle_retvals") else None
+            fitted.mle_retvals.get("converged", None) if hasattr(fitted, "mle_retvals") else None
         )
 
         model_path = MODEL_DIR / f"{state}_{best_type}.pkl"

@@ -2,17 +2,17 @@ import json
 
 import numpy as np
 
-from .config import MODEL_DIR, MODEL_ORDERS, BEST_MODELS_PATH
+from .config import BEST_MODELS_PATH, MODEL_ORDERS
 from .data_pipeline import get_tourism_data
 from .feature_engineering import build_state_series, create_corona_dummy
 from .train import train_sarima, train_sarimax
-
 
 # ==================================================
 # Settings
 # ==================================================
 
-TEST_SIZE = 12   # last 12 months as test set
+TEST_SIZE = 12  # last 12 months as test set
+
 
 def load_best_models():
     """Load the saved best-model selection from JSON."""
@@ -30,6 +30,7 @@ def load_best_models():
 # Train / test split
 # ==================================================
 
+
 def train_test_split_ts(series, test_size=TEST_SIZE):
     """Split a time series into train (all but last N) and test (last N)."""
     train = series.iloc[:-test_size]
@@ -40,6 +41,7 @@ def train_test_split_ts(series, test_size=TEST_SIZE):
 # ==================================================
 # Evaluation metrics
 # ==================================================
+
 
 def evaluate_forecast(y_true, y_pred):
     """Compute MAPE (%) and MAE between actual and predicted series."""
@@ -59,6 +61,7 @@ def evaluate_forecast(y_true, y_pred):
 # ==================================================
 # Evaluate one state
 # ==================================================
+
 
 def evaluate_state(series, orders):
     """
@@ -84,9 +87,7 @@ def evaluate_state(series, orders):
 
     sarimax_order, sarimax_seasonal = orders["sarimax"]
     sarimax_model = train_sarimax(train, exog_train, sarimax_order, sarimax_seasonal)
-    sarimax_forecast = sarimax_model.get_forecast(
-        steps=TEST_SIZE, exog=exog_test
-    ).predicted_mean
+    sarimax_forecast = sarimax_model.get_forecast(steps=TEST_SIZE, exog=exog_test).predicted_mean
     sarimax_mape, sarimax_mae = evaluate_forecast(test, sarimax_forecast)
 
     return {
@@ -98,6 +99,7 @@ def evaluate_state(series, orders):
 # ==================================================
 # Evaluate all states and select best
 # ==================================================
+
 
 def evaluate_all_states():
     """
@@ -140,22 +142,6 @@ def evaluate_all_states():
     print(f"DONE. Saved → {BEST_MODELS_PATH}")
 
     return results
-
-
-# ==================================================
-# Helper: load best model selection
-# ==================================================
-
-def load_best_models():
-    """Load the saved best-model selection from JSON."""
-
-    if not BEST_MODELS_PATH.exists():
-        raise FileNotFoundError(
-            f"Best models file not found at {BEST_MODELS_PATH}. "
-            f"Run `python -m modeling.evaluate` first."
-        )
-
-    return json.loads(BEST_MODELS_PATH.read_text())
 
 
 # ==================================================
