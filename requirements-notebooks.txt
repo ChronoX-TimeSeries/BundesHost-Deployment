@@ -1,0 +1,19 @@
+-r requirements.txt
+
+# Notebook environment
+jupyter
+ipykernel
+nbformat==5.10.4
+anywidget==0.9.21
+
+# Visualization (notebooks use these instead of plotly)
+matplotlib==3.7.1
+seaborn==0.13.2
+
+# Models we may experiment with again
+tensorflow==2.15.0
+xgboost>=3.2.0
+arch==8.0.0
+
+# Output formatting
+tabulate==0.10.0
