@@ -5,9 +5,8 @@ from pathlib import Path
 # Paths
 # ==================================================
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
-# DATA_PATH = BASE_DIR / "data" / "processed" / "tourism_long.csv"
 
 MODEL_DIR = BASE_DIR / "models"
 MODEL_DIR.mkdir(exist_ok=True)

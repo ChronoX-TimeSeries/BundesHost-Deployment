@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[project]
+name = "bundeshost"
+version = "0.1.0"
+description = "Tourism forecasting and hosting capacity analysis for German states"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Nazila Fazeli" },
+]
+dependencies = [
+    # Runtime dependencies will be referenced from requirements.txt later
+]
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bundeshost"]
