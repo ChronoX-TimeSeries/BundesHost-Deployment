@@ -3,7 +3,7 @@ import json
 import numpy as np
 
 from ..config import BEST_MODELS_PATH, MODEL_ORDERS
-from ..data_pipeline import get_tourism_data
+from ..data.pipeline import get_tourism_data
 from .feature_engineering import build_state_series, create_corona_dummy
 from .train import train_sarima, train_sarimax
 

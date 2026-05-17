@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from bundeshost.config import MODEL_ORDERS
-from bundeshost.data_pipeline import get_tourism_data
+from bundeshost.data.pipeline import get_tourism_data
 from bundeshost.modeling.feature_engineering import build_state_series
 from bundeshost.modeling.predict import forecast_state
 
