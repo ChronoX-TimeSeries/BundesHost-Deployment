@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: bundeshost-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bundeshost}
+      POSTGRES_USER: ${POSTGRES_USER:-bundeshost}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bundeshost}
+    ports:
+      - "5432:5432"
+    volumes:
+      - bundeshost_pgdata:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+
+volumes:
+  bundeshost_pgdata:
