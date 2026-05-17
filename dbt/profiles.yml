@@ -1,0 +1,23 @@
+bundeshost:
+  target: dev
+
+  outputs:
+    dev:
+      type: postgres
+      host:     "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      port:     "{{ env_var('POSTGRES_PORT', '5432') | int }}"
+      user:     "{{ env_var('POSTGRES_USER', 'bundeshost') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'bundeshost') }}"
+      dbname:   "{{ env_var('POSTGRES_DB', 'bundeshost') }}"
+      schema:   dbt_dev
+      threads:  4
+
+    prod:
+      type: postgres
+      host:     "{{ env_var('POSTGRES_HOST') }}"
+      port:     "{{ env_var('POSTGRES_PORT') | int }}"
+      user:     "{{ env_var('POSTGRES_USER') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
+      dbname:   "{{ env_var('POSTGRES_DB') }}"
+      schema:   dbt_prod
+      threads:  8

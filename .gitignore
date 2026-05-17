@@ -140,3 +140,9 @@ app/streamlit_app_v*.py
 app/streamlit_app_v*.py
 
 
+
+# dbt
+dbt/logs/
+dbt/target/
+dbt/dbt_packages/
+dbt/.user.yml
