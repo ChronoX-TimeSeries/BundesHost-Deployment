@@ -30,3 +30,9 @@ def sample_tourism_df():
             })
 
     return pd.DataFrame(rows)
+
+@pytest.fixture(scope="session")
+def destatis_long_df():
+    """The real Destatis CSV, parsed once per test session."""
+    from bundeshost.data.destatis_client import fetch_from_csv
+    return fetch_from_csv()
