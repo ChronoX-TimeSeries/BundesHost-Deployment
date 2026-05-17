@@ -1,8 +1,8 @@
-"""Tests for bundeshost.feature_engineering."""
+"""Tests for bundeshost.modeling.feature_engineering."""
 
 import pandas as pd
 
-from bundeshost.feature_engineering import build_state_series, create_corona_dummy
+from bundeshost.modeling.feature_engineering import build_state_series, create_corona_dummy
 
 
 # ==================================================

@@ -12,8 +12,8 @@ import streamlit as st
 
 from bundeshost.config import MODEL_ORDERS
 from bundeshost.data_pipeline import get_tourism_data
-from bundeshost.feature_engineering import build_state_series
-from bundeshost.predict import forecast_state
+from bundeshost.modeling.feature_engineering import build_state_series
+from bundeshost.modeling.predict import forecast_state
 
 # ----------------------------------------------------------------------------------------------------
 # General settings

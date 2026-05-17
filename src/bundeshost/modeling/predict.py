@@ -1,7 +1,7 @@
 import joblib
 import pandas as pd
 
-from .config import MODEL_DIR, load_best_models
+from ..config import MODEL_DIR, load_best_models
 from .feature_engineering import create_corona_dummy
 
 # ==================================================

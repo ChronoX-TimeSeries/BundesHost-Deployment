@@ -1,8 +1,8 @@
 import joblib
 import statsmodels.api as sm
 
-from .config import MODEL_DIR, MODEL_ORDERS, load_best_models
-from .data_pipeline import get_tourism_data
+from ..config import MODEL_DIR, MODEL_ORDERS, load_best_models
+from ..data_pipeline import get_tourism_data
 from .feature_engineering import build_state_series, create_corona_dummy
 
 # ==================================================

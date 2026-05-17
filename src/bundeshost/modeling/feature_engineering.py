@@ -1,6 +1,6 @@
 import pandas as pd
 
-from .config import COVID_END, COVID_START
+from ..config import COVID_END, COVID_START
 
 # ==================================================
 # Build univariate state time series

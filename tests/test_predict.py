@@ -1,9 +1,9 @@
-"""Smoke tests for bundeshost.predict."""
+"""Smoke tests for bundeshost.modeling.predict."""
 
 import pandas as pd
 import pytest
 
-from bundeshost.predict import forecast_state
+from bundeshost.modeling.predict import forecast_state
 
 
 # ==================================================
