@@ -5,8 +5,17 @@ from datetime import date
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 
-from bundeshost.api.schemas import ForecastPoint, ForecastResponse
+from bundeshost.api.schemas import (
+    ForecastPoint,
+    ForecastResponse,
+    HistoryPoint,
+    HistoryResponse,
+    StateSummary,
+    SummaryResponse,
+)
 from bundeshost.config import STATES
+from bundeshost.data.pipeline import get_tourism_data
+from bundeshost.modeling.feature_engineering import build_state_series
 from bundeshost.modeling.predict import forecast_state, get_last_training_date
 
 app = FastAPI(
@@ -89,3 +98,58 @@ def forecast(
         last_training_date=last_training_date.date(),
         forecast=points,
     )
+
+
+@app.get("/history/{state}", response_model=HistoryResponse)
+def history(
+    state: str,
+    last_n: int = Query(default=36, ge=1, le=480),
+) -> HistoryResponse:
+    """
+    Return the last `last_n` months of historical arrivals for the given state.
+    """
+
+    # State validation
+    if state not in STATES:
+        raise HTTPException(status_code=404, detail=f"State '{state}' not found.")
+
+    # Load data + build the state series (PeriodIndex M)
+    df = get_tourism_data()
+    series = build_state_series(df, state).sort_index()
+
+    # Take the last N months
+    tail = series.tail(last_n)
+
+    # Convert PeriodIndex -> Timestamp -> date
+    dates = pd.to_datetime(tail.index.to_timestamp() if hasattr(tail.index, "to_timestamp") else tail.index)
+
+    points = [
+        HistoryPoint(date=d.date(), arrivals=float(v))
+        for d, v in zip(dates, tail.values)
+    ]
+
+    return HistoryResponse(state=state, history=points)
+
+
+@app.get("/summary", response_model=SummaryResponse)
+def summary() -> SummaryResponse:
+    """
+    Return the latest available monthly arrivals for every state.
+
+    Used by the frontend for cross-state comparison charts.
+    """
+
+    df = get_tourism_data().sort_values("date")
+
+    # Latest available date across the dataset (single value for the whole snapshot)
+    as_of = pd.to_datetime(df["date"].max()).date()
+
+    items: list[StateSummary] = []
+    for s in STATES:
+        state_data = df[df["state"] == s]
+        if len(state_data) == 0:
+            continue
+        latest = float(state_data.iloc[-1]["arrivals"])
+        items.append(StateSummary(state=s, latest_arrivals=latest))
+
+    return SummaryResponse(as_of=as_of, states=items)

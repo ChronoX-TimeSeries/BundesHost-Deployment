@@ -78,3 +78,62 @@ def test_forecast_rejects_horizon_too_small():
 def test_forecast_rejects_horizon_too_large():
     response = client.get("/forecast/Berlin?horizon=99")
     assert response.status_code == 422
+
+# ==================================================
+# /history/{state}
+# ==================================================
+
+
+def test_history_returns_200_for_valid_state():
+    response = client.get("/history/Berlin?last_n=36")
+    assert response.status_code == 200
+
+
+def test_history_response_shape():
+    response = client.get("/history/Berlin?last_n=12")
+    data = response.json()
+    assert data["state"] == "Berlin"
+    assert isinstance(data["history"], list)
+    assert len(data["history"]) == 12
+
+
+def test_history_point_has_required_fields():
+    response = client.get("/history/Hamburg?last_n=3")
+    point = response.json()["history"][0]
+    assert set(point.keys()) == {"date", "arrivals"}
+    assert isinstance(point["arrivals"], float)
+
+
+def test_history_returns_404_for_unknown_state():
+    response = client.get("/history/Atlantis?last_n=12")
+    assert response.status_code == 404
+
+
+def test_history_rejects_invalid_last_n():
+    response = client.get("/history/Berlin?last_n=0")
+    assert response.status_code == 422
+
+
+# ==================================================
+# /summary
+# ==================================================
+
+
+def test_summary_returns_200():
+    response = client.get("/summary")
+    assert response.status_code == 200
+
+
+def test_summary_response_shape():
+    response = client.get("/summary")
+    data = response.json()
+    assert "as_of" in data
+    assert isinstance(data["states"], list)
+    assert len(data["states"]) == 16
+
+
+def test_summary_state_item_has_required_fields():
+    response = client.get("/summary")
+    item = response.json()["states"][0]
+    assert set(item.keys()) == {"state", "latest_arrivals"}
+    assert isinstance(item["latest_arrivals"], float)
