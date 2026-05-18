@@ -5,7 +5,16 @@ from ..config import MODEL_DIR, load_best_models
 from .feature_engineering import create_corona_dummy
 
 # ==================================================
-# Load model for a given state
+# In-memory model cache
+# ==================================================
+# Models are loaded from disk on first access and kept in memory.
+# This avoids repeated disk I/O when the API serves multiple forecasts.
+
+_MODEL_CACHE: dict[str, tuple] = {}
+
+
+# ==================================================
+# Load model for a given state (cached)
 # ==================================================
 
 
@@ -13,8 +22,12 @@ def load_model(state_name):
     """
     Load the best fitted model for a given state, based on the
     selection saved in models/best_models.json.
+    Caches the loaded model in memory so subsequent calls are free.
     Returns (model, model_name).
     """
+
+    if state_name in _MODEL_CACHE:
+        return _MODEL_CACHE[state_name]
 
     best_models = load_best_models()
 
@@ -34,8 +47,25 @@ def load_model(state_name):
         )
 
     model = joblib.load(model_path)
+    _MODEL_CACHE[state_name] = (model, model_path.name)
 
     return model, model_path.name
+
+
+# ==================================================
+# Last training date helper
+# ==================================================
+
+
+def get_last_training_date(state_name) -> pd.Timestamp:
+    """
+    Return the last date the model was trained on.
+    Used by the API to compute the gap between training data and 'today'.
+    """
+
+    model, _ = load_model(state_name)
+
+    return pd.Timestamp(model.data.dates[-1])
 
 
 # ==================================================

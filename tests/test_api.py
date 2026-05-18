@@ -28,3 +28,53 @@ def test_states_returns_16_states():
     assert len(data) == 16
     assert "Bayern" in data
     assert "Hamburg" in data
+
+# ==================================================
+# /forecast/{state}
+# ==================================================
+
+
+def test_forecast_returns_200_for_valid_state():
+    response = client.get("/forecast/Berlin?horizon=12")
+    assert response.status_code == 200
+
+
+def test_forecast_response_shape():
+    response = client.get("/forecast/Berlin?horizon=6")
+    data = response.json()
+    assert data["state"] == "Berlin"
+    assert data["horizon"] == 6
+    assert "today" in data
+    assert "last_training_date" in data
+    assert isinstance(data["forecast"], list)
+    assert len(data["forecast"]) > 0
+
+
+def test_forecast_point_has_required_fields():
+    response = client.get("/forecast/Hamburg?horizon=3")
+    point = response.json()["forecast"][0]
+    assert set(point.keys()) == {"date", "forecast", "lower_ci", "upper_ci", "type"}
+    assert point["type"] in {"backfill", "future"}
+
+
+def test_forecast_has_both_backfill_and_future():
+    response = client.get("/forecast/Berlin?horizon=12")
+    types = {p["type"] for p in response.json()["forecast"]}
+    # Today is past the model's last training date, so we expect both buckets.
+    assert "backfill" in types
+    assert "future" in types
+
+
+def test_forecast_returns_404_for_unknown_state():
+    response = client.get("/forecast/Atlantis?horizon=12")
+    assert response.status_code == 404
+
+
+def test_forecast_rejects_horizon_too_small():
+    response = client.get("/forecast/Berlin?horizon=0")
+    assert response.status_code == 422
+
+
+def test_forecast_rejects_horizon_too_large():
+    response = client.get("/forecast/Berlin?horizon=99")
+    assert response.status_code == 422
