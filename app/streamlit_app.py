@@ -2,23 +2,24 @@
 BundesHost Streamlit App.
 
 Tourism forecasting and hosting capacity analysis for German states.
+Frontend-only: this app talks to the BundesHost API via HTTP and contains
+no modeling or data-access logic of its own.
 """
 
+import os
 import warnings
 
+import httpx
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
-from bundeshost.config import MODEL_ORDERS
-from bundeshost.data.pipeline import get_tourism_data
-from bundeshost.modeling.feature_engineering import build_state_series
-from bundeshost.modeling.predict import forecast_state
 
 # ----------------------------------------------------------------------------------------------------
 # General settings
 
 warnings.filterwarnings("ignore")
+
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 
 # --------------------------------------------------
@@ -51,30 +52,6 @@ RED_BORDER = "#FCA5A5"
 
 
 # --------------------------------------------------
-# Model metadata (UI only)
-
-# --------------------------------------------------
-# Static UI lists
-
-STATES = sorted(MODEL_ORDERS.keys())
-
-MONTHS = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-]
-
-
-# --------------------------------------------------
 # Page config
 
 st.set_page_config(
@@ -83,6 +60,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
 
 # ── CSS ─────────────────────────────────────────────
 st.markdown(
@@ -123,7 +101,8 @@ st.markdown(
     width: 8px; height: 8px; background: {ACCENT_MID};
     border-radius: 50%; margin-left: 3px; margin-bottom: 6px; flex-shrink: 0;
   }}
-/* ── Hero ── */
+
+  /* ── Hero ── */
   .bh-hero {{
     position: relative; border-radius: 20px; overflow: hidden;
     margin: 24px 0; min-height: 340px;
@@ -221,7 +200,7 @@ st.markdown(
     outline: none !important; box-shadow: 0 0 0 3px {ACCENT_LIGHT} !important;
   }}
 
-   /* ── Metric cards ── */
+  /* ── Metric cards ── */
   .bh-cards {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 24px; }}
   .bh-card {{
     background: {WHITE}; border: 1.5px solid {BORDER}; border-radius: 14px;
@@ -247,6 +226,7 @@ st.markdown(
     display: flex;
     gap: 24px;
     align-items: center;
+    flex-wrap: wrap;
   }}
   .bh-legend-item {{
     display: flex;
@@ -264,7 +244,11 @@ st.markdown(
   .bh-legend-line-solid {{
     background: {ACCENT_MID};
   }}
-  .bh-legend-line-dashed {{
+  .bh-legend-line-dashed-amber {{
+    background: linear-gradient(90deg, {AMBER} 50%, transparent 50%);
+    background-size: 8px 3px;
+  }}
+  .bh-legend-line-dashed-navy {{
     background: linear-gradient(90deg, {NAVY} 50%, transparent 50%);
     background-size: 8px 3px;
   }}
@@ -281,6 +265,7 @@ st.markdown(
     background: {WHITE} !important; border: 1.5px solid {BORDER} !important;
     border-radius: 12px !important; box-shadow: 0 1px 6px rgba(0,0,0,0.03) !important;
   }}
+
   /* ── Scope note ── */
   .bh-scope {{
     background: {ACCENT_LIGHT}; border-left: 3px solid {ACCENT_MID};
@@ -288,7 +273,7 @@ st.markdown(
     color: {ACCENT}; margin: 24px 0; line-height: 1.65;
   }}
 
-  /* ── Alt cards v2 (new design) ── */
+  /* ── Alt cards v2 ── */
   .bh-alt-card-v2 {{
     background: {WHITE};
     border: 1.5px solid {BORDER};
@@ -341,7 +326,7 @@ st.markdown(
     font-weight: 600;
   }}
 
- /* ── Footer ── */
+  /* ── Footer ── */
   .bh-footer {{
     text-align: center; padding: 32px 0 8px;
     border-top: 1.5px solid {BORDER}; margin-top: 40px;
@@ -357,31 +342,48 @@ st.markdown(
 )
 
 
-# ── Helpers ─────────────────────────────────────────
+# ── API client helpers ─────────────────────────────────
+
+
+def _api_get(path: str, params: dict | None = None) -> dict:
+    """Single point of contact with the API. Raises on non-2xx."""
+    response = httpx.get(f"{API_BASE_URL}{path}", params=params, timeout=30.0)
+    response.raise_for_status()
+    return response.json()
 
 
 @st.cache_data(show_spinner=False)
-def load_data() -> pd.DataFrame:
-    df = get_tourism_data()
-    return df.sort_values("date").reset_index(drop=True)
+def fetch_states() -> list[str]:
+    return _api_get("/states")
 
 
-# --------------------------------------------------
-# Import forecasting logic (from predict.py)
+@st.cache_data(show_spinner=False)
+def fetch_summary() -> dict:
+    return _api_get("/summary")
 
 
-# --------------------------------------------------
-# Build time series (ONLY for plotting history)
+@st.cache_data(show_spinner=False)
+def fetch_history(state: str, last_n: int = 36) -> pd.DataFrame:
+    data = _api_get(f"/history/{state}", params={"last_n": last_n})
+    df = pd.DataFrame(data["history"])
+    df["date"] = pd.to_datetime(df["date"])
+    return df
 
 
-# --------------------------------------------------
-# Hosting Capacity Score
+def fetch_forecast(state: str, horizon: int) -> pd.DataFrame:
+    """Not cached — forecast depends on 'today', which changes over time."""
+    data = _api_get(f"/forecast/{state}", params={"horizon": horizon})
+    df = pd.DataFrame(data["forecast"])
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+# ── Hosting Capacity Score ─────────────────────────────
 
 
 def compute_hcs(event_size: int, peak: float) -> float:
     if event_size <= 0 or peak <= 0:
         return 50.0
-
     return round(min(100.0, max(0.0, (peak / event_size) * 50)), 1)
 
 
@@ -390,12 +392,10 @@ def hcs_meta(score: float) -> tuple:
         return "✅", "Likely Feasible", "bh-banner-go"
     elif score >= 40:
         return "⚠️", "Proceed with Caution", "bh-banner-caution"
-
     return "🚫", "Capacity Risk", "bh-banner-no"
 
 
-# --------------------------------------------------
-# Formatting helper (UI only)
+# ── Formatting helper ─────────────────────────────────
 
 
 def fmt(v: float) -> str:
@@ -403,113 +403,139 @@ def fmt(v: float) -> str:
         return f"{v/1_000_000:.2f}M"
     if v >= 1_000:
         return f"{v/1_000:.1f}K"
-
     return f"{v:.0f}"
 
 
 # ── Charts ───────────────────────────────────────────
 
 
-def make_forecast_chart(series, fcast, state, horizon):
-
-    # fix order
-    series = series.sort_index()
-
-    # --------------------------------------------------
-    # Last 36 months of history
-
-    tail = series.tail(36)
-
-    # Convert PeriodIndex → Timestamp (safe)
-    hdates = pd.to_datetime(tail.index)
-
-    # --------------------------------------------------
-    # Create figure
+def make_forecast_chart(history_df, fcast_df, state, horizon):
+    """
+    Plot history (green) + backfill (amber dashed) + future (navy dashed).
+    Connector lines between segments are drawn separately so the colors stay clean.
+    The current month (today) is marked with a large hollow circle.
+    """
 
     fig = go.Figure()
 
     # --------------------------------------------------
-    # Historical line
+    # Historical (real data) — solid green
+
+    hdates = history_df["date"]
+    hvalues = history_df["arrivals"]
 
     fig.add_trace(
         go.Scatter(
             x=hdates,
-            y=tail.values,
-            mode="lines",
+            y=hvalues,
+            mode="lines+markers",
             name="Historical",
             line=dict(color=ACCENT_MID, width=2.5),
+            marker=dict(size=5, color=ACCENT_MID),
         )
     )
 
     # --------------------------------------------------
-    # Forecast (smooth connection)
+    # Split forecast
 
-    if not fcast.empty:
+    backfill_df = fcast_df[fcast_df["type"] == "backfill"]
+    future_df = fcast_df[fcast_df["type"] == "future"]
 
-        fdates = pd.to_datetime(fcast["date"])
+    last_hist_date = hdates.iloc[-1]
+    last_hist_value = float(hvalues.iloc[-1])
 
-        # last historical point
-        last_hist_date = hdates[-1]
-        last_hist_value = tail.values[-1]
+    # --------------------------------------------------
+    # Connector 1: last historical -> first backfill (amber line, no marker)
 
-        # --------------------------------------------------
-        # Connection line (Dec → Jan)
-
-        last_hist_date = hdates[-1]
-        last_hist_value = tail.values[-1]
-
-        first_forecast_date = fdates[0]
-        first_forecast_value = fcast["forecast"].iloc[0]
-
+    if not backfill_df.empty:
         fig.add_trace(
             go.Scatter(
-                x=[last_hist_date, first_forecast_date],
-                y=[last_hist_value, first_forecast_value],
+                x=[last_hist_date, backfill_df["date"].iloc[0]],
+                y=[last_hist_value, float(backfill_df["forecast"].iloc[0])],
                 mode="lines",
-                line=dict(color=ACCENT_MID, width=2.5),
+                line=dict(color=AMBER, width=2.5, dash="dash"),
                 showlegend=False,
+                hoverinfo="skip",
             )
         )
-        # --------------------------------------------------
-        # Forecast line
 
+    # --------------------------------------------------
+    # Backfill segment (amber dashed)
+
+    if not backfill_df.empty:
         fig.add_trace(
             go.Scatter(
-                x=fdates,
-                y=fcast["forecast"],
+                x=backfill_df["date"],
+                y=backfill_df["forecast"],
                 mode="lines+markers",
-                name="Forecast",
+                name="Backfill (gap)",
+                line=dict(color=AMBER, width=2.5, dash="dash"),
+                marker=dict(size=5, color=AMBER),
+            )
+        )
+        connector_last_date = backfill_df["date"].iloc[-1]
+        connector_last_value = float(backfill_df["forecast"].iloc[-1])
+    else:
+        connector_last_date = last_hist_date
+        connector_last_value = last_hist_value
+
+    # --------------------------------------------------
+    # Connector 2: last backfill -> first future (navy line, no marker)
+
+    if not future_df.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=[connector_last_date, future_df["date"].iloc[0]],
+                y=[connector_last_value, float(future_df["forecast"].iloc[0])],
+                mode="lines",
+                line=dict(color=AMBER, width=2.5, dash="dash"),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    # --------------------------------------------------
+    # Future segment (navy dashed)
+
+    if not future_df.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=future_df["date"],
+                y=future_df["forecast"],
+                mode="lines+markers",
+                name="Future",
                 line=dict(color=NAVY, width=2.5, dash="dash"),
                 marker=dict(size=5, color=NAVY),
             )
         )
 
-        # ── Split line (optional) ────────
-        split_date = fdates.min()
+    # --------------------------------------------------
+    # Current-month marker (large hollow circle on the first future point)
 
-        fig.add_shape(
-            type="line",
-            x0=split_date,
-            x1=split_date,
-            y0=0,
-            y1=1,
-            xref="x",
-            yref="paper",
-            line=dict(color="gray", dash="dot", width=1),
-            opacity=0.4,
+    if not future_df.empty:
+        today_row = future_df.iloc[0]
+        fig.add_trace(
+            go.Scatter(
+                x=[today_row["date"]],
+                y=[float(today_row["forecast"])],
+                mode="markers",
+                name="Current month",
+                marker=dict(
+                    size=14,
+                    color="rgba(0,0,0,0)",
+                    line=dict(color=NAVY, width=2.5),
+                ),
+                hovertemplate="Current month: %{x|%b %Y}<extra></extra>",
+                showlegend=False,
+            )
         )
 
-        fig.add_annotation(
-            x=split_date,
-            y=1,
-            yref="paper",
-            text="Forecast starts",
-            showarrow=False,
-            yshift=10,
-            font=dict(size=10, color="gray"),
-        )
     # --------------------------------------------------
     # Layout
+
+    fdates = fcast_df["date"]
+    x_min = hdates.min()
+    x_max = fdates.max() if not fcast_df.empty else hdates.max()
 
     fig.update_layout(
         title=dict(
@@ -524,7 +550,7 @@ def make_forecast_chart(series, fcast, state, horizon):
             tickfont=dict(color=TEXT_DIM),
             title=None,
             linecolor=BORDER,
-            range=[hdates.min(), fdates.max() if not fcast.empty else hdates.max()],
+            range=[x_min, x_max],
         ),
         yaxis=dict(
             gridcolor=BORDER,
@@ -536,30 +562,19 @@ def make_forecast_chart(series, fcast, state, horizon):
         margin=dict(l=0, r=0, t=50, b=0),
         height=360,
         hovermode="x unified",
-        showlegend=False,  # Hide plotly legend, we'll use custom legend below
+        showlegend=False,
     )
 
     return fig
 
 
-def make_allstates_chart(df):
+def make_allstates_chart(summary_items):
+    """Bar chart of latest arrivals across all states."""
 
-    # --------------------------------------------------
-    # Extract latest arrivals per state
-
-    rows = []
-
-    for state in STATES:
-
-        state_data = df[df["state"] == state].sort_values("date")["arrivals"]
-
-        if len(state_data) > 0:
-            rows.append({"State": state, "Arrivals": float(state_data.iloc[-1])})
-
-    adf = pd.DataFrame(rows).sort_values("Arrivals", ascending=True)
-
-    # --------------------------------------------------
-    # Create bar chart
+    adf = pd.DataFrame(summary_items).rename(
+        columns={"state": "State", "latest_arrivals": "Arrivals"}
+    )
+    adf = adf.sort_values("Arrivals", ascending=True)
 
     fig = go.Figure(
         go.Bar(
@@ -576,9 +591,6 @@ def make_allstates_chart(df):
             textposition="outside",
         )
     )
-
-    # --------------------------------------------------
-    # Layout
 
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
@@ -610,6 +622,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # ── Hero ─────────────────────────────────────────────
 st.markdown(
     """
@@ -634,7 +647,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-## ── Query panel ──────────────────────────────────────
+
+# ── Bootstrapping (fetch states once) ─────────────────
+
+try:
+    STATES = fetch_states()
+except httpx.HTTPError as e:
+    st.error(f"Cannot reach the BundesHost API at {API_BASE_URL}. ({e})")
+    st.stop()
+
+
+# ── Query panel ──────────────────────────────────────
 
 st.markdown('<div class="bh-panel">', unsafe_allow_html=True)
 st.markdown('<div class="bh-panel-label">Configure your analysis</div>', unsafe_allow_html=True)
@@ -661,10 +684,9 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 
 # --------------------------------------------------
-# Set default values (hidden from user)
+# Defaults (hidden from user)
 
-event_size = 50_000  # Default event size
-target_month = "July"  # Default target month
+event_size = 50_000
 
 
 # --------------------------------------------------
@@ -696,55 +718,45 @@ else:
 if analyze:
 
     # --------------------------------------------------
-    # Load data
+    # Fetch history + forecast + summary
 
-    with st.spinner("Loading data…"):
-        try:
-            df = load_data()
-            data_ok = True
-        except FileNotFoundError:
-            st.error("Could not load tourism data from Destatis CSV.")
-            data_ok = False
+    try:
+        with st.spinner("Loading history…"):
+            history_df = fetch_history(selected_state, last_n=36)
 
-    # --------------------------------------------------
-    # Forecast pipeline
-
-    if data_ok:
-
-        # History (for chart + latest value)
-        series = build_state_series(df, selected_state)
-        latest = float(series.iloc[-1]) if len(series) else 0.0
-
-        # Forecast (from predict.py → already DataFrame!)
         with st.spinner("Running forecast…"):
-            fcast = forecast_state(selected_state, horizon)
+            fcast_df = fetch_forecast(selected_state, horizon)
 
-    else:
-        fcast = pd.DataFrame()
-        latest = 0.0
+        with st.spinner("Loading summary…"):
+            summary = fetch_summary()
 
-    # --------------------------------------------------
-    # Peak calculation
+        api_ok = True
+    except httpx.HTTPError as e:
+        st.error(f"API error: {e}")
+        api_ok = False
 
-    if not fcast.empty:
-        peak_row = fcast.loc[fcast["forecast"].idxmax()]
+    if api_ok:
+
+        latest = float(history_df["arrivals"].iloc[-1]) if len(history_df) else 0.0
+
+        # Peak from the FUTURE part of the forecast (what users care about)
+        future_df = fcast_df[fcast_df["type"] == "future"]
+        if not future_df.empty:
+            peak_row = future_df.loc[future_df["forecast"].idxmax()]
+        else:
+            peak_row = fcast_df.loc[fcast_df["forecast"].idxmax()]
+        peak_value = float(peak_row["forecast"])
         peak_month = peak_row["date"].strftime("%B %Y")
-        peak_value = peak_row["forecast"]
-    else:
-        peak = latest
-        peak_month = "Latest"
 
-    # --------------------------------------------------
-    # Score
+        # Score (unused visually but kept for parity)
+        score = compute_hcs(event_size, peak_value)
+        emoji, label, css = hcs_meta(score)
 
-    score = compute_hcs(event_size, peak_value)
-    emoji, label, css = hcs_meta(score)
+        # --------------------------------------------------
+        # Metric cards
 
-    # --------------------------------------------------
-    # Metric cards (only 2 cards, no banner)
-
-    st.markdown(
-        f"""
+        st.markdown(
+            f"""
 <div class="bh-cards">
   <div class="bh-card">
     <div class="bh-card-label">Latest Arrivals (monthly)</div>
@@ -758,123 +770,115 @@ if analyze:
   </div>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
 
-    # --------------------------------------------------
-    # Forecast Chart (full width, no gauge)
+        # --------------------------------------------------
+        # Forecast chart
 
-    st.markdown('<div class="bh-section">Forecast</div>', unsafe_allow_html=True)
+        st.markdown('<div class="bh-section">Forecast</div>', unsafe_allow_html=True)
 
-    st.plotly_chart(
-        make_forecast_chart(series, fcast, selected_state, horizon),
-        use_container_width=True,
-        config={"displayModeBar": False},
-    )
+        st.plotly_chart(
+            make_forecast_chart(history_df, fcast_df, selected_state, horizon),
+            use_container_width=True,
+            config={"displayModeBar": False},
+        )
 
-    # Legend card (below chart)
-    st.markdown(
-        """
-        <div class="bh-legend">
-            <div class="bh-legend-item">
-                <div class="bh-legend-line bh-legend-line-solid"></div>
-                <span>Historical</span>
+        # Legend (3 entries now)
+        st.markdown(
+            """
+            <div class="bh-legend">
+                <div class="bh-legend-item">
+                    <div class="bh-legend-line bh-legend-line-solid"></div>
+                    <span>Historical (real data)</span>
+                </div>
+                <div class="bh-legend-item">
+                    <div class="bh-legend-line bh-legend-line-dashed-amber"></div>
+                    <span>Backfill (gap since training)</span>
+                </div>
+                <div class="bh-legend-item">
+                    <div class="bh-legend-line bh-legend-line-dashed-navy"></div>
+                    <span>Future forecast</span>
+                </div>
             </div>
-            <div class="bh-legend-item">
-                <div class="bh-legend-line bh-legend-line-dashed"></div>
-                <span>Forecast</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # --------------------------------------------------
-    # Forecast table
+        # --------------------------------------------------
+        # Forecast table
 
-    if not fcast.empty:
+        if not fcast_df.empty:
+            st.markdown('<div class="bh-section">Forecast Table</div>', unsafe_allow_html=True)
 
-        st.markdown('<div class="bh-section">Forecast Table</div>', unsafe_allow_html=True)
+            disp = fcast_df.copy()
+            disp["date"] = pd.to_datetime(disp["date"]).dt.strftime("%b %Y")
+            disp = disp[["date", "type", "forecast", "lower_ci", "upper_ci"]]
+            disp.columns = ["Month", "Type", "Forecast", "Lower CI (80%)", "Upper CI (80%)"]
 
-        disp = fcast.copy()
+            for col in ["Forecast", "Lower CI (80%)", "Upper CI (80%)"]:
+                disp[col] = disp[col].apply(lambda x: f"{x:,.0f}")
 
-        # format date
-        disp["date"] = pd.to_datetime(disp["date"]).dt.strftime("%b %Y")
+            st.dataframe(disp, use_container_width=True, hide_index=True)
 
-        disp.columns = ["Month", "Forecast", "Lower CI (80%)", "Upper CI (80%)"]
+        # --------------------------------------------------
+        # Scope note
 
-        for col in disp.columns[1:]:
-            disp[col] = disp[col].apply(lambda x: f"{x:,.0f}")
+        st.markdown(
+            '<div class="bh-scope"><strong>Scope note:</strong> The Hosting Capacity Score '
+            "is derived from time-series forecasts of tourist arrivals only. Accommodation "
+            "stock, transport links, and venue capacity are planned stretch goals. "
+            "Treat results as indicative, not operational.</div>",
+            unsafe_allow_html=True,
+        )
 
-        st.dataframe(disp, use_container_width=True, hide_index=True)
+        # --------------------------------------------------
+        # Alternative states (top 3, excluding selected)
 
-    # --------------------------------------------------
-    # Scope note
+        st.markdown(
+            '<div class="bh-section">Alternative States — Top 3 by Latest Arrivals</div>',
+            unsafe_allow_html=True,
+        )
 
-    st.markdown(
-        '<div class="bh-scope"><strong>Scope note:</strong> The Hosting Capacity Score '
-        "is derived from time-series forecasts of tourist arrivals only. Accommodation "
-        "stock, transport links, and venue capacity are planned stretch goals. "
-        "Treat results as indicative, not operational.</div>",
-        unsafe_allow_html=True,
-    )
+        alt = sorted(
+            [s for s in summary["states"] if s["state"] != selected_state],
+            key=lambda x: x["latest_arrivals"],
+            reverse=True,
+        )[:3]
 
-    # --------------------------------------------------
-    # Alternative states (new design with gradient colors)
+        rank_colors = ["#1A6B5A", "#528B7F", "#679B8F"]
 
-    st.markdown(
-        '<div class="bh-section">Alternative States — Top 3 by Latest Arrivals</div>',
-        unsafe_allow_html=True,
-    )
+        acols = st.columns(3)
+        for i, (col, row) in enumerate(zip(acols, alt)):
+            with col:
+                bg_color = rank_colors[i]
+                st.markdown(
+                    f'<div class="bh-alt-card-v2">'
+                    f'<div class="bh-alt-card-v2-left" style="background: {bg_color};">'
+                    f'<div class="bh-alt-card-v2-rank">#{i+1}</div>'
+                    f"</div>"
+                    f'<div class="bh-alt-card-v2-right">'
+                    f'<div class="bh-alt-card-v2-name">{row["state"]}</div>'
+                    f'<div class="bh-alt-card-v2-sub">Latest: {fmt(row["latest_arrivals"])}/mo</div>'
+                    f"</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
 
-    alt = sorted(
-        [
-            {"State": s, "Latest": float(build_state_series(df, s).iloc[-1])}
-            for s in STATES
-            if s != selected_state and len(build_state_series(df, s))
-        ],
-        key=lambda x: x["Latest"],
-        reverse=True,
-    )[:3]
+        # --------------------------------------------------
+        # All states chart
 
-    # Color gradient (darkest to lightest)
-    rank_colors = [
-        "#1A6B5A",  # Rank 1 - darkest green (ACCENT)
-        "#528B7F",  # Rank 2 - medium green (removed the 'r' typo)
-        "#679B8F",  # Rank 3 - lighter green (added missing #)
-    ]
+        st.markdown(
+            '<div class="bh-section">Compare All States — Latest Arrivals</div>',
+            unsafe_allow_html=True,
+        )
 
-    acols = st.columns(3)
+        st.plotly_chart(
+            make_allstates_chart(summary["states"]),
+            use_container_width=True,
+            config={"displayModeBar": False},
+        )
 
-    for i, (col, row) in enumerate(zip(acols, alt)):
-        with col:
-            bg_color = rank_colors[i]
-            st.markdown(
-                f'<div class="bh-alt-card-v2">'
-                f'<div class="bh-alt-card-v2-left" style="background: {bg_color};">'
-                f'<div class="bh-alt-card-v2-rank">#{i+1}</div>'
-                f"</div>"
-                f'<div class="bh-alt-card-v2-right">'
-                f'<div class="bh-alt-card-v2-name">{row["State"]}</div>'
-                f'<div class="bh-alt-card-v2-sub">Latest: {fmt(row["Latest"])}/mo</div>'
-                f"</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-
-    # --------------------------------------------------
-    # All states chart
-
-    st.markdown(
-        '<div class="bh-section">Compare All States — Latest Arrivals</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.plotly_chart(
-        make_allstates_chart(df),
-        use_container_width=True,
-        config={"displayModeBar": False},
-    )
 
 # ── Footer ────────────────────────────────────────────
 st.markdown(
