@@ -1,0 +1,5 @@
+outs:
+- md5: 235c82ab965a88191b12040377421336
+  size: 276275
+  hash: md5
+  path: tourism_long.csv
