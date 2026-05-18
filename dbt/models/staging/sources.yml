@@ -1,0 +1,40 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: public
+    description: "Raw tables loaded by Python ingest scripts"
+    tables:
+      - name: tourism_raw
+        description: "Destatis tourism data, monthly per state. Loaded by bundeshost.data.ingest."
+        columns:
+          - name: date
+            description: "First day of the month"
+            data_tests:
+              - not_null
+          - name: state
+            description: "German state name"
+            data_tests:
+              - not_null
+          - name: arrivals
+            description: "Number of arrivals (monthly)"
+          - name: overnight
+            description: "Number of overnight stays (monthly)"
+          - name: ingested_at
+            description: "When this row was loaded by Python"
+models:
+  - name: stg_tourism
+    description: "Type-cast view over public.tourism_raw"
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - date
+              - state
+    columns:
+      - name: date
+        data_tests:
+          - not_null
+      - name: state
+        data_tests:
+          - not_null 
