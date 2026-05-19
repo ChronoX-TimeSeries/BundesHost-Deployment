@@ -6,6 +6,7 @@ from mlflow.tracking import MlflowClient
 
 from ..config import MODEL_DIR, MODEL_ORDERS, load_best_models
 from ..data.pipeline import get_tourism_data
+from ..registry import promote_to_production, should_promote
 from .feature_engineering import build_state_series, create_corona_dummy
 
 EXPERIMENT_NAME = "bundeshost-training"
@@ -73,14 +74,15 @@ def train_best_for_state(series, state, orders, best_type):
 
 
 # ==================================================
-# Retrain best model for ONE state (with MLflow logging + registry)
+# Retrain best model for ONE state (with MLflow logging + registry + auto-promotion)
 # ==================================================
 
 
 def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=None):
     """
     Retrain the best model for a single state on the full data, log the run
-    to MLflow, and register the model in the MLflow Model Registry.
+    to MLflow, register the model in the MLflow Model Registry, and (if it
+    beats the current Production MAPE) promote it to Production.
 
     Parameters
     ----------
@@ -119,6 +121,9 @@ def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=N
     order = order or default_order
     seasonal_order = seasonal_order or default_seasonal
 
+    # MAPE from the latest evaluation — used as the promotion criterion.
+    new_mape = float(best_models[state]["metrics"][best_type]["mape"])
+
     # Smart-detect: if a parent run is active, become a child; otherwise stand alone.
     is_nested = mlflow.active_run() is not None
 
@@ -132,6 +137,7 @@ def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=N
         mlflow.log_param("model_type", best_type)
         mlflow.log_param("order", str(order))
         mlflow.log_param("seasonal_order", str(seasonal_order))
+        mlflow.log_param("eval_mape", new_mape)
 
         series = build_state_series(df, state)
 
@@ -164,6 +170,13 @@ def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=N
             value=best_type,
         )
 
+        # Auto-promotion: if this version beats current Production MAPE, promote it.
+        if should_promote(client, registered_name, new_mape):
+            promote_to_production(client, registered_name, model_version.version, new_mape)
+            promotion_note = f"promoted to Production (MAPE={new_mape:.2f}%)"
+        else:
+            promotion_note = f"not promoted (MAPE {new_mape:.2f}% >= current)"
+
         model_path = MODEL_DIR / f"{state}_{best_type}.pkl"
         joblib.dump(fitted, model_path)
 
@@ -171,6 +184,7 @@ def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=N
             f"  → converged={converged}  "
             f"registered={registered_name} v{model_version.version} "
             f"(variant={best_type})  "
+            f"{promotion_note}  "
             f"saved={model_path.name}\n"
         )
 
