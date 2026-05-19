@@ -1,9 +1,14 @@
 import joblib
+import mlflow
+import mlflow.statsmodels
 import statsmodels.api as sm
 
 from ..config import MODEL_DIR, MODEL_ORDERS, load_best_models
 from ..data.pipeline import get_tourism_data
 from .feature_engineering import build_state_series, create_corona_dummy
+
+EXPERIMENT_NAME = "bundeshost-training"
+
 
 # ==================================================
 # Train a single SARIMA model
@@ -67,48 +72,69 @@ def train_best_for_state(series, state, orders, best_type):
 
 
 # ==================================================
-# Retrain best model for all states
+# Retrain best model for all states (with MLflow logging)
 # ==================================================
 
 
 def retrain_all_states():
     """
     For every state, train the best model (per best_models.json) on the
-    full data and save it as a .pkl file.
+    full data, save it as a .pkl file, and log the run to MLflow.
 
-    Prerequisite: best_models.json must exist (run `python -m modeling.evaluate` first).
+    Prerequisite: best_models.json must exist (run `python -m bundeshost.modeling.evaluate` first).
     """
 
     print("START RETRAINING (best models only)...\n")
 
+    mlflow.set_experiment(EXPERIMENT_NAME)
+
     best_models = load_best_models()
     df = get_tourism_data()
 
-    for state in MODEL_ORDERS.keys():
+    with mlflow.start_run(run_name="retrain-all") as parent_run:
+        mlflow.log_param("total_states", len(MODEL_ORDERS))
+        mlflow.log_param("data_source", "postgres-mart")
 
-        if state not in best_models:
-            print(f"  ⚠️  Skipping {state} (not in best_models.json)")
-            continue
+        for state in MODEL_ORDERS.keys():
 
-        best_type = best_models[state]["best_model"]
+            if state not in best_models:
+                print(f"  ⚠️  Skipping {state} (not in best_models.json)")
+                continue
 
-        print(f"Retraining {state} ({best_type})...")
+            best_type = best_models[state]["best_model"]
+            order, seasonal_order = MODEL_ORDERS[state][best_type]
 
-        series = build_state_series(df, state)
-        orders = MODEL_ORDERS[state]
+            print(f"Retraining {state} ({best_type})...")
 
-        fitted = train_best_for_state(series, state, orders, best_type)
+            with mlflow.start_run(run_name=state, nested=True):
+                mlflow.log_param("state", state)
+                mlflow.log_param("model_type", best_type)
+                mlflow.log_param("order", str(order))
+                mlflow.log_param("seasonal_order", str(seasonal_order))
 
-        converged = (
-            fitted.mle_retvals.get("converged", None) if hasattr(fitted, "mle_retvals") else None
-        )
+                series = build_state_series(df, state)
+                orders = MODEL_ORDERS[state]
 
-        model_path = MODEL_DIR / f"{state}_{best_type}.pkl"
-        joblib.dump(fitted, model_path)
+                fitted = train_best_for_state(series, state, orders, best_type)
 
-        print(f"  → converged={converged}  saved={model_path.name}\n")
+                converged = (
+                    fitted.mle_retvals.get("converged", None)
+                    if hasattr(fitted, "mle_retvals")
+                    else None
+                )
 
-    print("DONE.")
+                mlflow.log_metric("aic", float(fitted.aic))
+                mlflow.log_metric("bic", float(fitted.bic))
+                mlflow.log_metric("converged", 1.0 if converged else 0.0)
+
+                mlflow.statsmodels.log_model(fitted, artifact_path="model")
+
+                model_path = MODEL_DIR / f"{state}_{best_type}.pkl"
+                joblib.dump(fitted, model_path)
+
+                print(f"  → converged={converged}  saved={model_path.name}\n")
+
+        print(f"DONE. Parent run id: {parent_run.info.run_id}")
 
 
 # ==================================================
