@@ -1,55 +1,76 @@
-import joblib
+import mlflow.statsmodels
 import pandas as pd
+from mlflow.exceptions import RestException
+from mlflow.tracking import MlflowClient
 
-from ..config import MODEL_DIR, load_best_models
 from .feature_engineering import create_corona_dummy
 
 # ==================================================
 # In-memory model cache
 # ==================================================
-# Models are loaded from disk on first access and kept in memory.
-# This avoids repeated disk I/O when the API serves multiple forecasts.
+# Models are loaded from the MLflow Model Registry on first access and kept
+# in memory. This avoids repeated network round-trips when the API serves
+# multiple forecasts.
 
 _MODEL_CACHE: dict[str, tuple] = {}
 
 
 # ==================================================
-# Load model for a given state (cached)
+# Load model for a given state (cached, from MLflow Registry)
 # ==================================================
 
 
 def load_model(state_name):
     """
-    Load the best fitted model for a given state, based on the
-    selection saved in models/best_models.json.
-    Caches the loaded model in memory so subsequent calls are free.
+    Load the Production version of the model for a given state from the
+    MLflow Model Registry. Caches the loaded model in memory so subsequent
+    calls are free.
+
     Returns (model, model_name).
+
+    The returned model_name string includes the variant (e.g.
+    "Hamburg_sarima") so that forecast_state() can detect SARIMAX models
+    via substring match on "sarimax".
+
+    Raises
+    ------
+    KeyError
+        If no registered model exists for the given state.
+    FileNotFoundError
+        If the registered model exists but has no Production version.
     """
 
     if state_name in _MODEL_CACHE:
         return _MODEL_CACHE[state_name]
 
-    best_models = load_best_models()
+    registered_name = f"bundeshost-{state_name}"
+    model_uri = f"models:/{registered_name}/Production"
 
-    if state_name not in best_models:
-        raise KeyError(
-            f"State '{state_name}' not found in best_models.json. "
-            f"Run `python -m modeling.evaluate` to regenerate it."
-        )
+    client = MlflowClient()
+    try:
+        versions = client.get_latest_versions(registered_name, stages=["Production"])
+    except RestException as e:
+        if "RESOURCE_DOES_NOT_EXIST" in str(e):
+            raise KeyError(
+                f"No registered model found for state '{state_name}' "
+                f"(expected name '{registered_name}'). "
+                f"Run `python -m bundeshost.modeling.train` to create it."
+            ) from e
+        raise
 
-    best_type = best_models[state_name]["best_model"]
-    model_path = MODEL_DIR / f"{state_name}_{best_type}.pkl"
-
-    if not model_path.exists():
+    if not versions:
         raise FileNotFoundError(
-            f"Model file not found: {model_path}. "
-            f"Run `python -m modeling.train` to regenerate models."
+            f"No Production version found for {registered_name}. "
+            f"Run `python scripts/promote_all_to_production.py` to seed it."
         )
 
-    model = joblib.load(model_path)
-    _MODEL_CACHE[state_name] = (model, model_path.name)
+    variant = versions[0].tags.get("variant", "sarima")
+    model = mlflow.statsmodels.load_model(model_uri)
 
-    return model, model_path.name
+    model_name = f"{state_name}_{variant}"
+    _MODEL_CACHE[state_name] = (model, model_name)
+
+    return model, model_name
 
 
 # ==================================================
