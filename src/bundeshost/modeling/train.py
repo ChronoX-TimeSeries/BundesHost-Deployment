@@ -1,10 +1,9 @@
-import joblib
 import mlflow
 import mlflow.statsmodels
 import statsmodels.api as sm
 from mlflow.tracking import MlflowClient
 
-from ..config import MODEL_DIR, MODEL_ORDERS, load_best_models
+from ..config import MODEL_ORDERS, load_best_models
 from ..data.pipeline import get_tourism_data
 from ..registry import promote_to_production, should_promote
 from .feature_engineering import build_state_series, create_corona_dummy
@@ -177,15 +176,11 @@ def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=N
         else:
             promotion_note = f"not promoted (MAPE {new_mape:.2f}% >= current)"
 
-        model_path = MODEL_DIR / f"{state}_{best_type}.pkl"
-        joblib.dump(fitted, model_path)
-
         print(
             f"  → converged={converged}  "
             f"registered={registered_name} v{model_version.version} "
             f"(variant={best_type})  "
-            f"{promotion_note}  "
-            f"saved={model_path.name}\n"
+            f"{promotion_note}\n"
         )
 
     return model_version
@@ -199,8 +194,8 @@ def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=N
 def retrain_all_states():
     """
     For every state, train the best model (per best_models.json) on the
-    full data, save it as a .pkl file, log the run to MLflow, and
-    register the model in the MLflow Model Registry.
+    full data, log the run to MLflow, and register the model in the
+    MLflow Model Registry.
 
     Prerequisite: best_models.json must exist (run `python -m bundeshost.modeling.evaluate` first).
     """
