@@ -149,3 +149,6 @@ dbt/.user.yml
 
 # DVC
 /models
+
+# backups
+backup_*.sql
