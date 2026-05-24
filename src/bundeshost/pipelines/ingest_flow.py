@@ -1,6 +1,6 @@
 """Prefect flow that ingests tourism data into Postgres.
 
-Wraps bundeshost.data.ingest as a Prefect task so we get:
+Wraps the ingest_task from bundeshost.pipelines.tasks so we get:
 - Run history visible in Prefect Cloud
 - Automatic retries on failure
 - Logging tied to a flow run
@@ -12,28 +12,9 @@ Run locally:
 
 import argparse
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, get_run_logger
 
-from bundeshost.data.ingest import get_engine, load_data, upsert_tourism_raw
-
-
-@task(retries=2, retry_delay_seconds=10)
-def ingest_task(source: str = "api") -> int:
-    """Fetch tourism data and UPSERT it into public.tourism_raw.
-
-    Returns the total row count in the table after the upsert.
-    """
-    logger = get_run_logger()
-    logger.info(f"Ingest task started (source={source})")
-
-    df = load_data(source)
-    logger.info(f"Loaded {len(df)} rows from {source}")
-
-    engine = get_engine()
-    total = upsert_tourism_raw(df, engine)
-
-    logger.info(f"UPSERT complete; tourism_raw now has {total} rows")
-    return total
+from bundeshost.pipelines.tasks import ingest_task
 
 
 @flow(name="ingest-only")
