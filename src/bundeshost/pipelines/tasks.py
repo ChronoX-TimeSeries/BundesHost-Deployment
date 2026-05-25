@@ -24,13 +24,20 @@ from bundeshost.data.ingest import get_engine, load_data, upsert_tourism_raw
 # ---------------------------------------------------------------------------
 
 @task(retries=2, retry_delay_seconds=10, name="ingest")
-def ingest_task(source: str = "api") -> int:
-    """Fetch tourism data and UPSERT it into public.tourism_raw."""
-    logger = get_run_logger()
-    logger.info(f"Ingest started (source={source})")
+def ingest_task(source: str = "api", df=None) -> int:
+    """Fetch tourism data and UPSERT it into public.tourism_raw.
 
-    df = load_data(source)
-    logger.info(f"Loaded {len(df)} rows from {source}")
+    If `df` is provided (e.g. from check_for_new_data_task), skip fetching
+    and use it directly. Otherwise fetch from `source` ('api' or 'csv').
+    """
+    logger = get_run_logger()
+
+    if df is None:
+        logger.info(f"Ingest started (source={source})")
+        df = load_data(source)
+        logger.info(f"Loaded {len(df)} rows from {source}")
+    else:
+        logger.info(f"Ingest started (using pre-fetched DataFrame, {len(df)} rows)")
 
     engine = get_engine()
     total = upsert_tourism_raw(df, engine)
@@ -111,3 +118,45 @@ def train_task() -> None:
     logger.info("Starting retrain_all_states (full-data refit, MLflow register + promote)")
     retrain_all_states()
     logger.info("Retrain finished")
+
+# ---------------------------------------------------------------------------
+# Conditional check: does Destatis have data newer than what we already have?
+# ---------------------------------------------------------------------------
+
+@task(retries=2, retry_delay_seconds=10, name="check-for-new-data")
+def check_for_new_data_task() -> dict:
+    """Fetch from Destatis and compare with the latest date already in Postgres.
+
+    Returns a dict with:
+        has_new_data (bool): True if the API has months newer than the DB
+        latest_in_db (date or None): max(date) in public.tourism_raw, or None if empty
+        latest_in_api (date): max(date) from the API response
+        df (DataFrame): the full API response, so ingest_task doesn't refetch
+
+    Reused by quarterly_retrain to decide whether to continue or early-exit.
+    """
+    from sqlalchemy import text
+
+    from bundeshost.data.destatis_client import fetch_from_api
+
+    logger = get_run_logger()
+    logger.info("Fetching latest snapshot from Destatis API")
+    df = fetch_from_api()
+    latest_in_api = df["date"].max()
+    logger.info(f"API latest date: {latest_in_api.date()}")
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT MAX(date) FROM public.tourism_raw")).scalar()
+    latest_in_db = result  # may be None if the table is empty
+    logger.info(f"DB latest date:  {latest_in_db}")
+
+    has_new_data = (latest_in_db is None) or (latest_in_api.date() > latest_in_db)
+    logger.info(f"has_new_data = {has_new_data}")
+
+    return {
+        "has_new_data": has_new_data,
+        "latest_in_db": latest_in_db,
+        "latest_in_api": latest_in_api.date(),
+        "df": df,
+    }
