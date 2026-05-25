@@ -25,6 +25,7 @@ from bundeshost.pipelines.tasks import (
     dbt_task,
     evaluate_task,
     ingest_task,
+    invalidate_api_cache_task,
     train_task,
 )
 
@@ -86,6 +87,9 @@ def quarterly_retrain_flow(force: bool = False, dbt_target: str = "dev") -> dict
     # Step 5: train
     train_task(wait_for=[evaluate_results])
 
+    # Step 6: tell the API to clear its model cache so the new models are served
+    invalidate_api_cache_task()
+    
     logger.info("quarterly-retrain finished")
     return {
         "ran": True,

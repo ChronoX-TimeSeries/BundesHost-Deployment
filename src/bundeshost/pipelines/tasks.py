@@ -160,3 +160,38 @@ def check_for_new_data_task() -> dict:
         "latest_in_api": latest_in_api.date(),
         "df": df,
     }
+
+# ---------------------------------------------------------------------------
+# Cache invalidation: tell the API to drop its in-memory model cache after
+# new models are promoted to Production.
+# ---------------------------------------------------------------------------
+
+@task(retries=3, retry_delay_seconds=5, name="invalidate-api-cache")
+def invalidate_api_cache_task() -> dict:
+    """POST to the API's /admin/clear-cache endpoint.
+
+    Uses BUNDESHOST_API_URL from env (default http://localhost:8000).
+    Returns the JSON response. Soft-fails: if the API is unreachable, logs
+    a warning rather than failing the whole flow — the cache will clear
+    next time the API restarts anyway.
+    """
+    import os
+
+    import httpx
+
+    logger = get_run_logger()
+    base = os.getenv("BUNDESHOST_API_URL", "http://localhost:8000").rstrip("/")
+    url = f"{base}/admin/clear-cache"
+
+    try:
+        response = httpx.post(url, timeout=10.0)
+        response.raise_for_status()
+        result = response.json()
+        logger.info(f"API cache cleared: {result}")
+        return result
+    except httpx.HTTPError as e:
+        logger.warning(
+            f"Could not reach API at {url} ({e!r}). "
+            f"Cache will clear on next API restart."
+        )
+        return {"status": "unreachable", "error": str(e)}

@@ -17,6 +17,7 @@ from bundeshost.config import STATES
 from bundeshost.data.pipeline import get_tourism_data
 from bundeshost.modeling.feature_engineering import build_state_series
 from bundeshost.modeling.predict import forecast_state, get_last_training_date
+from bundeshost.registry import clear_model_cache
 
 app = FastAPI(
     title="BundesHost API",
@@ -153,3 +154,16 @@ def summary() -> SummaryResponse:
         items.append(StateSummary(state=s, latest_arrivals=latest))
 
     return SummaryResponse(as_of=as_of, states=items)
+
+
+@app.post("/admin/clear-cache")
+def clear_cache() -> dict[str, str | int]:
+    """Clear the in-memory model cache.
+
+    Called by the Prefect retrain flow after promoting new models so the API
+    serves the new versions on the next request instead of the cached old ones.
+    """
+    from bundeshost.modeling.predict import _MODEL_CACHE
+    n_before = len(_MODEL_CACHE)
+    clear_model_cache()
+    return {"status": "cleared", "models_evicted": n_before}
