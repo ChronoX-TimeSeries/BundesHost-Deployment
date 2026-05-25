@@ -17,11 +17,11 @@ from prefect import get_run_logger, task
 from bundeshost.config import BASE_DIR
 from bundeshost.data.ingest import get_engine, load_data, upsert_tourism_raw
 
-
 # ---------------------------------------------------------------------------
 # Ingest (re-export of what ingest_flow already uses, kept here for the
 # quarterly flow to import everything from one place).
 # ---------------------------------------------------------------------------
+
 
 @task(retries=2, retry_delay_seconds=10, name="ingest")
 def ingest_task(source: str = "api", df=None) -> int:
@@ -49,6 +49,7 @@ def ingest_task(source: str = "api", df=None) -> int:
 # ---------------------------------------------------------------------------
 # dbt
 # ---------------------------------------------------------------------------
+
 
 def _run_dbt(command: list[str]) -> str:
     """Run a dbt command from inside dbt/. Raises if it exits non-zero."""
@@ -85,6 +86,7 @@ def dbt_task(target: str = "dev") -> None:
     test_out = _run_dbt(["dbt", "test", "--target", target])
     logger.info(test_out.strip().splitlines()[-1] if test_out.strip() else "dbt test finished")
 
+
 # ---------------------------------------------------------------------------
 # Evaluate & Train
 #
@@ -93,6 +95,7 @@ def dbt_task(target: str = "dev") -> None:
 # reads that file, fits on the full data, registers in MLflow, and auto-promotes
 # if the new MAPE beats the current Production MAPE.
 # ---------------------------------------------------------------------------
+
 
 @task(retries=0, name="evaluate-all-states")
 def evaluate_task() -> dict:
@@ -119,9 +122,11 @@ def train_task() -> None:
     retrain_all_states()
     logger.info("Retrain finished")
 
+
 # ---------------------------------------------------------------------------
 # Conditional check: does Destatis have data newer than what we already have?
 # ---------------------------------------------------------------------------
+
 
 @task(retries=2, retry_delay_seconds=10, name="check-for-new-data")
 def check_for_new_data_task() -> dict:
@@ -161,10 +166,12 @@ def check_for_new_data_task() -> dict:
         "df": df,
     }
 
+
 # ---------------------------------------------------------------------------
 # Cache invalidation: tell the API to drop its in-memory model cache after
 # new models are promoted to Production.
 # ---------------------------------------------------------------------------
+
 
 @task(retries=3, retry_delay_seconds=5, name="invalidate-api-cache")
 def invalidate_api_cache_task() -> dict:
@@ -191,7 +198,6 @@ def invalidate_api_cache_task() -> dict:
         return result
     except httpx.HTTPError as e:
         logger.warning(
-            f"Could not reach API at {url} ({e!r}). "
-            f"Cache will clear on next API restart."
+            f"Could not reach API at {url} ({e!r}). " f"Cache will clear on next API restart."
         )
         return {"status": "unreachable", "error": str(e)}

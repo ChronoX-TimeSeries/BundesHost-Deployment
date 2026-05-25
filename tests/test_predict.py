@@ -5,7 +5,6 @@ import pytest
 
 from bundeshost.modeling.predict import forecast_state
 
-
 # ==================================================
 # forecast_state smoke tests
 # ==================================================

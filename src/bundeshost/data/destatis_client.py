@@ -7,15 +7,16 @@ Two source paths:
 Both return the same long-format DataFrame:
     columns: date (datetime), state (str), arrivals (float), overnight (float)
 """
-import os 
+
+import os
 
 import pandas as pd
 from dotenv import load_dotenv
 
-
 from ..config import BASE_DIR
 
 load_dotenv()
+
 
 def fetch_from_csv(path=None):
     """Read the historical Destatis CSV and return a long-format DataFrame.
@@ -88,13 +89,10 @@ def fetch_from_api(start_year: int = 1992) -> pd.DataFrame:
 
     import requests
 
-
     base_url = os.getenv("DESTATIS_API_BASE_URL")
     token = os.getenv("DESTATIS_API_TOKEN")
     if not base_url or not token:
-        raise RuntimeError(
-            "DESTATIS_API_BASE_URL and DESTATIS_API_TOKEN must be set in .env"
-        )
+        raise RuntimeError("DESTATIS_API_BASE_URL and DESTATIS_API_TOKEN must be set in .env")
     if not base_url.endswith("/"):
         base_url += "/"
 
@@ -119,9 +117,7 @@ def fetch_from_api(start_year: int = 1992) -> pd.DataFrame:
 
     # Destatis sometimes wraps errors in a 200 JSON body. Sniff first byte.
     if response.content[:1] == b"{":
-        raise ValueError(
-            f"Destatis returned JSON instead of a zip: {response.text[:300]}"
-        )
+        raise ValueError(f"Destatis returned JSON instead of a zip: {response.text[:300]}")
 
     # Unzip in memory; archive contains a single ffcsv file.
     zf = zipfile.ZipFile(io.BytesIO(response.content))
@@ -138,9 +134,7 @@ def fetch_from_api(start_year: int = 1992) -> pd.DataFrame:
     # Each row is one (year, month, state, metric, value). Pivot to wide.
     # MONAT01..MONAT12 -> month integer 1..12
     raw["month"] = raw["1_variable_attribute_code"].str.replace("MONAT", "").astype(int)
-    raw["date"] = pd.to_datetime(
-        dict(year=raw["time"], month=raw["month"], day=1)
-    )
+    raw["date"] = pd.to_datetime(dict(year=raw["time"], month=raw["month"], day=1))
     raw = raw.rename(columns={"2_variable_attribute_label": "state"})
 
     # GAST01 = arrivals, GAST02 = overnight stays
@@ -150,9 +144,7 @@ def fetch_from_api(start_year: int = 1992) -> pd.DataFrame:
         unknown = raw.loc[raw["metric"].isna(), "value_variable_code"].unique()
         raise ValueError(f"Unknown value_variable_code(s) from API: {unknown}")
 
-    wide = raw.pivot_table(
-        index=["date", "state"], columns="metric", values="value"
-    ).reset_index()
+    wide = raw.pivot_table(index=["date", "state"], columns="metric", values="value").reset_index()
     wide.columns.name = None
 
     # Drop rows where both metrics are NaN (months not yet published).

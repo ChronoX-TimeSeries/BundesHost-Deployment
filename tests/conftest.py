@@ -23,16 +23,20 @@ def sample_tourism_df():
     rows = []
     for state in ["Hamburg", "Berlin"]:
         for i, date in enumerate(dates):
-            rows.append({
-                "date": date,
-                "state": state,
-                "arrivals": 100_000 + i * 1_000,  # simple upward trend
-            })
+            rows.append(
+                {
+                    "date": date,
+                    "state": state,
+                    "arrivals": 100_000 + i * 1_000,  # simple upward trend
+                }
+            )
 
     return pd.DataFrame(rows)
+
 
 @pytest.fixture(scope="session")
 def destatis_long_df():
     """The real Destatis CSV, parsed once per test session."""
     from bundeshost.data.destatis_client import fetch_from_csv
+
     return fetch_from_csv()

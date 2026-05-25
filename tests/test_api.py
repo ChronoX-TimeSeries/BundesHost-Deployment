@@ -16,6 +16,7 @@ def test_health_response_shape():
     response = client.get("/health")
     assert response.json() == {"status": "ok"}
 
+
 def test_states_returns_200():
     response = client.get("/states")
     assert response.status_code == 200
@@ -28,6 +29,7 @@ def test_states_returns_16_states():
     assert len(data) == 16
     assert "Bayern" in data
     assert "Hamburg" in data
+
 
 # ==================================================
 # /forecast/{state}
@@ -78,6 +80,7 @@ def test_forecast_rejects_horizon_too_small():
 def test_forecast_rejects_horizon_too_large():
     response = client.get("/forecast/Berlin?horizon=99")
     assert response.status_code == 422
+
 
 # ==================================================
 # /history/{state}

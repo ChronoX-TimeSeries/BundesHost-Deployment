@@ -5,14 +5,14 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from bundeshost.data.destatis_client import fetch_from_api, fetch_from_csv
+from bundeshost.data.destatis_client import fetch_from_api
 
 from ._destatis_api_fixtures import build_zip_response, make_row
-
 
 # ---------------------------------------------------------------------------
 # fetch_from_csv — historical seed (Phase B)
 # ---------------------------------------------------------------------------
+
 
 def test_fetch_from_csv_returns_dataframe(destatis_long_df):
     assert isinstance(destatis_long_df, pd.DataFrame)
@@ -43,6 +43,7 @@ def test_fetch_from_csv_no_duplicates_on_date_state(destatis_long_df):
 # All tests mock requests.post so we never hit the real API in CI/local runs.
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def api_env(monkeypatch):
     """Set the env vars fetch_from_api needs."""
@@ -67,8 +68,10 @@ def sample_api_rows():
 
 def _mock_response(content: bytes, status_code: int = 200):
     """Build a minimal object that quacks like requests.Response."""
+
     class _R:
         pass
+
     r = _R()
     r.content = content
     r.status_code = status_code

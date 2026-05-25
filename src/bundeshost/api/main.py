@@ -1,7 +1,5 @@
 """FastAPI application entrypoint for the BundesHost API."""
 
-from datetime import date
-
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 
@@ -122,12 +120,11 @@ def history(
     tail = series.tail(last_n)
 
     # Convert PeriodIndex -> Timestamp -> date
-    dates = pd.to_datetime(tail.index.to_timestamp() if hasattr(tail.index, "to_timestamp") else tail.index)
+    dates = pd.to_datetime(
+        tail.index.to_timestamp() if hasattr(tail.index, "to_timestamp") else tail.index
+    )
 
-    points = [
-        HistoryPoint(date=d.date(), arrivals=float(v))
-        for d, v in zip(dates, tail.values)
-    ]
+    points = [HistoryPoint(date=d.date(), arrivals=float(v)) for d, v in zip(dates, tail.values)]
 
     return HistoryResponse(state=state, history=points)
 
@@ -164,6 +161,7 @@ def clear_cache() -> dict[str, str | int]:
     serves the new versions on the next request instead of the cached old ones.
     """
     from bundeshost.modeling.predict import _MODEL_CACHE
+
     n_before = len(_MODEL_CACHE)
     clear_model_cache()
     return {"status": "cleared", "models_evicted": n_before}

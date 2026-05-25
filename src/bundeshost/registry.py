@@ -8,19 +8,16 @@ in-memory model cache. Used by:
 - API admin endpoints: to clear the cache after a retrain
 """
 
-from typing import Optional
-
 from mlflow.entities.model_registry import ModelVersion
 from mlflow.exceptions import RestException
 from mlflow.tracking import MlflowClient
-
 
 # ==================================================
 # Lookup helpers
 # ==================================================
 
 
-def get_production_version(client: MlflowClient, registered_name: str) -> Optional[ModelVersion]:
+def get_production_version(client: MlflowClient, registered_name: str) -> ModelVersion | None:
     """Return the current Production version of a registered model, or None.
 
     Returns None if the model is not registered yet, or if it has no
@@ -35,7 +32,7 @@ def get_production_version(client: MlflowClient, registered_name: str) -> Option
     return versions[0] if versions else None
 
 
-def get_production_mape(client: MlflowClient, registered_name: str) -> Optional[float]:
+def get_production_mape(client: MlflowClient, registered_name: str) -> float | None:
     """Return the MAPE that was tagged on the current Production version, or None."""
     version = get_production_version(client, registered_name)
     if version is None:

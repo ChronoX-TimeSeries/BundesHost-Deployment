@@ -4,7 +4,6 @@ import pandas as pd
 
 from bundeshost.modeling.feature_engineering import build_state_series, create_corona_dummy
 
-
 # ==================================================
 # build_state_series
 # ==================================================

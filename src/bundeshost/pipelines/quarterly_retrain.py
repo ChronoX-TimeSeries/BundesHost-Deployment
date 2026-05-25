@@ -89,7 +89,7 @@ def quarterly_retrain_flow(force: bool = False, dbt_target: str = "dev") -> dict
 
     # Step 6: tell the API to clear its model cache so the new models are served
     invalidate_api_cache_task()
-    
+
     logger.info("quarterly-retrain finished")
     return {
         "ran": True,

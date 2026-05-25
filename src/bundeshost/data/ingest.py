@@ -46,6 +46,7 @@ def upsert_tourism_raw(df: pd.DataFrame, engine) -> int:
 
     with engine.begin() as conn:
         from sqlalchemy import MetaData, Table
+
         metadata = MetaData()
         tourism_raw = Table("tourism_raw", metadata, autoload_with=conn, schema="public")
 

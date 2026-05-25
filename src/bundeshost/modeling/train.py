@@ -145,9 +145,7 @@ def retrain_state(state, df=None, best_models=None, order=None, seasonal_order=N
         fitted = train_best_for_state(series, state, orders, best_type)
 
         converged = (
-            fitted.mle_retvals.get("converged", None)
-            if hasattr(fitted, "mle_retvals")
-            else None
+            fitted.mle_retvals.get("converged", None) if hasattr(fitted, "mle_retvals") else None
         )
 
         mlflow.log_metric("aic", float(fitted.aic))
