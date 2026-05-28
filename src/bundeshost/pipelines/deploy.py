@@ -1,9 +1,7 @@
 """Deploy the quarterly_retrain flow to Prefect Cloud with a quarterly schedule.
 
-This registers the flow as a deployment with a cron schedule (quarterly).
-For Hobby tier + managed work pools, code is pulled from GitHub at run time.
-Secrets are embedded into the deployment from .env so the managed worker
-can connect to Supabase, DagsHub, and Destatis without a localhost.
+Pull steps live in prefect.yaml at the repo root — they tell the managed
+worker to clone the repo and pip install -e . before loading the flow code.
 
 Usage:
     source .env (or: set -a && source .env && set +a)
@@ -33,9 +31,6 @@ def _env(*names: str) -> str:
 
 
 def main():
-    # Build the env dict that managed workers will see at runtime.
-    # Maps SUPABASE_* (which lives in .env for cloud) onto the POSTGRES_*
-    # names the flow code actually reads.
     runtime_env = {
         "POSTGRES_HOST": _env("SUPABASE_POSTGRES_HOST"),
         "POSTGRES_PORT": _env("SUPABASE_POSTGRES_PORT"),
@@ -48,7 +43,6 @@ def main():
         "MLFLOW_TRACKING_PASSWORD": _env("MLFLOW_TRACKING_PASSWORD"),
         "DESTATIS_API_BASE_URL": _env("DESTATIS_API_BASE_URL"),
         "DESTATIS_API_TOKEN": _env("DESTATIS_API_TOKEN"),
-        # API_BASE_URL points the cache-invalidation task at the public API.
         "API_BASE_URL": os.environ.get(
             "API_BASE_URL_PUBLIC", "https://bundeshost-api.fly.dev"
         ),
