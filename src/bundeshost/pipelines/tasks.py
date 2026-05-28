@@ -177,7 +177,7 @@ def check_for_new_data_task() -> dict:
 def invalidate_api_cache_task() -> dict:
     """POST to the API's /admin/clear-cache endpoint.
 
-    Uses BUNDESHOST_API_URL from env (default http://localhost:8000).
+    Uses API_BASE_URL from env (default http://localhost:8000).
     Returns the JSON response. Soft-fails: if the API is unreachable, logs
     a warning rather than failing the whole flow — the cache will clear
     next time the API restarts anyway.
@@ -187,7 +187,7 @@ def invalidate_api_cache_task() -> dict:
     import httpx
 
     logger = get_run_logger()
-    base = os.getenv("BUNDESHOST_API_URL", "http://localhost:8000").rstrip("/")
+    base = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
     url = f"{base}/admin/clear-cache"
 
     try:
