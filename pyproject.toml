@@ -49,3 +49,8 @@ ignore = [
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests requiring external services (Postgres, MLflow registry, local CSV file). Skipped on CI.",
+]

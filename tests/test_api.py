@@ -1,5 +1,6 @@
 """Tests for the BundesHost FastAPI service."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from bundeshost.api.main import app
@@ -36,11 +37,13 @@ def test_states_returns_16_states():
 # ==================================================
 
 
+@pytest.mark.integration
 def test_forecast_returns_200_for_valid_state():
     response = client.get("/forecast/Berlin?horizon=12")
     assert response.status_code == 200
 
 
+@pytest.mark.integration
 def test_forecast_response_shape():
     response = client.get("/forecast/Berlin?horizon=6")
     data = response.json()
@@ -52,6 +55,7 @@ def test_forecast_response_shape():
     assert len(data["forecast"]) > 0
 
 
+@pytest.mark.integration
 def test_forecast_point_has_required_fields():
     response = client.get("/forecast/Hamburg?horizon=3")
     point = response.json()["forecast"][0]
@@ -59,6 +63,7 @@ def test_forecast_point_has_required_fields():
     assert point["type"] in {"backfill", "future"}
 
 
+@pytest.mark.integration
 def test_forecast_has_both_backfill_and_future():
     response = client.get("/forecast/Berlin?horizon=12")
     types = {p["type"] for p in response.json()["forecast"]}
@@ -87,11 +92,13 @@ def test_forecast_rejects_horizon_too_large():
 # ==================================================
 
 
+@pytest.mark.integration
 def test_history_returns_200_for_valid_state():
     response = client.get("/history/Berlin?last_n=36")
     assert response.status_code == 200
 
 
+@pytest.mark.integration
 def test_history_response_shape():
     response = client.get("/history/Berlin?last_n=12")
     data = response.json()
@@ -100,6 +107,7 @@ def test_history_response_shape():
     assert len(data["history"]) == 12
 
 
+@pytest.mark.integration
 def test_history_point_has_required_fields():
     response = client.get("/history/Hamburg?last_n=3")
     point = response.json()["history"][0]
@@ -122,11 +130,13 @@ def test_history_rejects_invalid_last_n():
 # ==================================================
 
 
+@pytest.mark.integration
 def test_summary_returns_200():
     response = client.get("/summary")
     assert response.status_code == 200
 
 
+@pytest.mark.integration
 def test_summary_response_shape():
     response = client.get("/summary")
     data = response.json()
@@ -135,6 +145,7 @@ def test_summary_response_shape():
     assert len(data["states"]) == 16
 
 
+@pytest.mark.integration
 def test_summary_state_item_has_required_fields():
     response = client.get("/summary")
     item = response.json()["states"][0]
