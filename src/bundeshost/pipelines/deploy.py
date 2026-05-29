@@ -43,9 +43,7 @@ def main():
         "MLFLOW_TRACKING_PASSWORD": _env("MLFLOW_TRACKING_PASSWORD"),
         "DESTATIS_API_BASE_URL": _env("DESTATIS_API_BASE_URL"),
         "DESTATIS_API_TOKEN": _env("DESTATIS_API_TOKEN"),
-        "API_BASE_URL": os.environ.get(
-            "API_BASE_URL_PUBLIC", "https://bundeshost-api.fly.dev"
-        ),
+        "API_BASE_URL": os.environ.get("API_BASE_URL_PUBLIC", "https://bundeshost-api.fly.dev"),
     }
 
     flow.from_source(
