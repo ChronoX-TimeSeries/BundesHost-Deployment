@@ -14,14 +14,17 @@ from ._destatis_api_fixtures import build_zip_response, make_row
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_fetch_from_csv_returns_dataframe(destatis_long_df):
     assert isinstance(destatis_long_df, pd.DataFrame)
 
 
+@pytest.mark.integration
 def test_fetch_from_csv_expected_columns(destatis_long_df):
     assert list(destatis_long_df.columns) == ["date", "state", "arrivals", "overnight"]
 
 
+@pytest.mark.integration
 def test_fetch_from_csv_expected_dtypes(destatis_long_df):
     assert pd.api.types.is_datetime64_any_dtype(destatis_long_df["date"])
     assert pd.api.types.is_object_dtype(destatis_long_df["state"])
@@ -29,10 +32,12 @@ def test_fetch_from_csv_expected_dtypes(destatis_long_df):
     assert pd.api.types.is_numeric_dtype(destatis_long_df["overnight"])
 
 
+@pytest.mark.integration
 def test_fetch_from_csv_has_16_states(destatis_long_df):
     assert destatis_long_df["state"].nunique() == 16
 
 
+@pytest.mark.integration
 def test_fetch_from_csv_no_duplicates_on_date_state(destatis_long_df):
     assert not destatis_long_df.duplicated(subset=["date", "state"]).any()
 

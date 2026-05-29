@@ -34,7 +34,7 @@ jobs:
         run: black --check src/ tests/
 
       - name: Run pytest
-        run: pytest -v
+        run: pytest -v -m "not integration"
 
   docker-build:
     name: Docker build

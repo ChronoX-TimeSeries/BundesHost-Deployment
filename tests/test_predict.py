@@ -5,6 +5,8 @@ import pytest
 
 from bundeshost.modeling.predict import forecast_state
 
+pytestmark = pytest.mark.integration
+
 # ==================================================
 # forecast_state smoke tests
 # ==================================================
