@@ -1,7 +1,7 @@
 """Deploy the quarterly_retrain flow to Prefect Cloud with a quarterly schedule.
 
-Pull steps live in prefect.yaml at the repo root — they tell the managed
-worker to clone the repo and pip install -e . before loading the flow code.
+Phase G: uses a prebuilt Docker image from ghcr.io that already has bundeshost
+installed. The managed worker pulls the image, no git clone or pip install needed.
 
 Usage:
     source .env (or: set -a && source .env && set +a)
@@ -11,14 +11,14 @@ Usage:
 import os
 
 from dotenv import load_dotenv
-from prefect import flow
+
+from bundeshost.pipelines.quarterly_retrain import quarterly_retrain_flow
 
 load_dotenv()
 
 QUARTERLY_CRON = "0 2 1 */3 *"
 WORK_POOL_NAME = "bundeshost-pool"
-GITHUB_REPO = "https://github.com/ChronoX-TimeSeries/BundesHost-Deployment.git"
-FLOW_ENTRYPOINT = "src/bundeshost/pipelines/quarterly_retrain.py:quarterly_retrain_flow"
+IMAGE = "ghcr.io/chronox-timeseries/bundeshost-prefect:latest"
 
 
 def _env(*names: str) -> str:
@@ -46,20 +46,20 @@ def main():
         "API_BASE_URL": os.environ.get("API_BASE_URL_PUBLIC", "https://bundeshost-api.fly.dev"),
     }
 
-    flow.from_source(
-        source=GITHUB_REPO,
-        entrypoint=FLOW_ENTRYPOINT,
-    ).deploy(
+    quarterly_retrain_flow.deploy(
         name="quarterly-retrain-prod",
         work_pool_name=WORK_POOL_NAME,
+        image=IMAGE,
+        build=False,
+        push=False,
         cron=QUARTERLY_CRON,
         description=(
             "Quarterly retrain pipeline: check Destatis for new data, "
             "if found run ingest -> dbt -> evaluate -> train, "
             "auto-promote in MLflow if MAPE improves. "
-            "Phase F+: Supabase-backed, Fly.io API target."
+            "Phase G: ghcr.io image-based, no git clone."
         ),
-        tags=["phase-2f-plus", "production"],
+        tags=["phase-2g", "production"],
         job_variables={"env": runtime_env},
     )
 
