@@ -21,6 +21,7 @@ import argparse
 from prefect import flow, get_run_logger
 
 from bundeshost.pipelines.tasks import (
+    drift_report_task,
     check_for_new_data_task,
     dbt_task,
     evaluate_task,
@@ -80,6 +81,9 @@ def quarterly_retrain_flow(force: bool = False, dbt_target: str = "dev") -> dict
 
     # Step 3: dbt
     dbt_task(target=dbt_target, wait_for=[row_count])
+
+    # Step 3.5: drift report (soft-fail, monitoring only)
+    drift_report_task(wait_for=[row_count])
 
     # Step 4: evaluate
     evaluate_results = evaluate_task(wait_for=[row_count])

@@ -201,3 +201,54 @@ def invalidate_api_cache_task() -> dict:
             f"Could not reach API at {url} ({e!r}). " f"Cache will clear on next API restart."
         )
         return {"status": "unreachable", "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Drift monitoring: compare the latest 12 months of arrivals against the
+# 24 months immediately preceding them. Soft-fail — drift detection is a
+# passive observation, not a decision input. If anything goes wrong, log
+# a warning and continue; the rest of the flow doesn't depend on it.
+# ---------------------------------------------------------------------------
+
+
+@task(retries=0, name="drift-report")
+def drift_report_task() -> dict:
+    """Generate a data-drift HTML report and log it as an MLflow artifact.
+
+    Reads the latest mart data via pipeline.get_tourism_data(), splits it
+    into a reference window (24 months) and a current window (12 months),
+    runs Evidently's DataDriftPreset on arrivals, and logs the resulting
+    HTML to MLflow under experiment 'bundeshost-monitoring'.
+
+    Returns a dict with status and (if successful) the MLflow run URL.
+    Never raises — drift reporting must not fail the retrain flow.
+    """
+    logger = get_run_logger()
+
+    try:
+        import tempfile
+        from pathlib import Path
+
+        import mlflow
+
+        from bundeshost.data.pipeline import get_tourism_data
+        from bundeshost.monitoring.drift import generate_drift_report
+
+        logger.info("Loading tourism data for drift report")
+        df = get_tourism_data()
+
+        logger.info("Generating Evidently data-drift report (arrivals)")
+        html = generate_drift_report(df)
+
+        mlflow.set_experiment("bundeshost-monitoring")
+        with mlflow.start_run(run_name="drift-report") as run:
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "drift_report.html"
+                path.write_text(html)
+                mlflow.log_artifact(str(path))
+            logger.info(f"Drift report logged to MLflow run {run.info.run_id}")
+            return {"status": "ok", "run_id": run.info.run_id}
+
+    except Exception as e:
+        logger.warning(f"Drift report failed ({e!r}); continuing flow.")
+        return {"status": "failed", "error": str(e)}
