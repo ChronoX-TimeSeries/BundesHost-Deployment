@@ -38,6 +38,6 @@ def test_state_production_mape_under_threshold(client, state):
     assert mape_tag is not None, f"{name} v{versions[0].version} has no production_mape tag"
 
     mape = float(mape_tag)
-    assert mape < MAPE_THRESHOLD, (
-        f"{name} v{versions[0].version} MAPE={mape:.2f}% exceeds {MAPE_THRESHOLD}%"
-    )
+    assert (
+        mape < MAPE_THRESHOLD
+    ), f"{name} v{versions[0].version} MAPE={mape:.2f}% exceeds {MAPE_THRESHOLD}%"
