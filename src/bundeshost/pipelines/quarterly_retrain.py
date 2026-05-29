@@ -21,9 +21,9 @@ import argparse
 from prefect import flow, get_run_logger
 
 from bundeshost.pipelines.tasks import (
-    drift_report_task,
     check_for_new_data_task,
     dbt_task,
+    drift_report_task,
     evaluate_task,
     ingest_task,
     invalidate_api_cache_task,
