@@ -22,3 +22,6 @@ dagshub>=0.3.0
 
 # Orchestration (Phase E)
 prefect>=3.0,<4.0
+
+# Monitoring (Phase H)
+evidently>=0.4,<0.5
