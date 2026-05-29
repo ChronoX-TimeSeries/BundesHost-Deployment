@@ -34,7 +34,14 @@ jobs:
         run: black --check src/ tests/
 
       - name: Run pytest
-        run: pytest -v -m "not integration"
+        run: pytest -v -m "not integration and not model_quality"
+
+      - name: Run model quality tests
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        run: pytest -v -m model_quality
 
   docker-build:
     name: Docker build

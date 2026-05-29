@@ -53,4 +53,5 @@ target-version = ["py311"]
 [tool.pytest.ini_options]
 markers = [
     "integration: tests requiring external services (Postgres, MLflow registry, local CSV file). Skipped on CI.",
+    "model_quality: tests that check MLflow Production model registry health. Run on CI with secrets.",
 ]
