@@ -33,6 +33,33 @@ def test_states_returns_16_states():
 
 
 # ==================================================
+# /metrics  (Prometheus)
+# ==================================================
+
+
+def test_metrics_returns_200():
+    response = client.get("/metrics")
+    assert response.status_code == 200
+
+
+def test_metrics_is_prometheus_format():
+    """The endpoint exposes Prometheus text format, not JSON."""
+    response = client.get("/metrics")
+    body = response.text
+    # Prometheus exposition format uses # HELP / # TYPE comment lines
+    assert "# HELP" in body
+    assert "# TYPE" in body
+
+
+def test_metrics_tracks_requests():
+    """After hitting an endpoint, its request count shows up in /metrics."""
+    client.get("/health")
+    response = client.get("/metrics")
+    # default instrumentator metric name for request totals
+    assert "http_requests_total" in response.text
+
+
+# ==================================================
 # /forecast/{state}
 # ==================================================
 
