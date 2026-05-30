@@ -95,3 +95,82 @@ def generate_drift_report(
     report.run(reference_data=ref_slim, current_data=cur_slim)
 
     return report.get_html()
+
+
+def generate_per_state_drift(
+    df: pd.DataFrame,
+    current_months: int = 12,
+    reference_months: int = 24,
+    column: str = "arrivals",
+) -> tuple[dict[str, dict], str]:
+    """Compute data drift separately for each state.
+
+    For every state, the reference and current windows are sliced *within that
+    state's own series* (filter first, then split), and an Evidently
+    DataDriftPreset is run on a single numeric column.
+
+    Parameters
+    ----------
+    df : long-format DataFrame with columns date, state, and `column`.
+    current_months : size of the current window (default 12).
+    reference_months : size of the reference window (default 24).
+    column : numeric column to check for drift (default 'arrivals').
+
+    Returns
+    -------
+    (results, html)
+    results : dict keyed by state, each value a dict with:
+        - 'drift' (bool): whether drift was detected for that state
+        - 'score' (float): share of drifted columns (0.0 or 1.0 here, since
+          we check a single column)
+        - 'error' (str, optional): present only if that state was skipped
+    html : a single combined HTML report with one section per state.
+    """
+    if "date" not in df.columns:
+        raise ValueError("Input DataFrame must have a 'date' column")
+    if "state" not in df.columns:
+        raise ValueError("Input DataFrame must have a 'state' column")
+    if column not in df.columns:
+        raise ValueError(f"Column '{column}' not found in DataFrame")
+
+    results: dict[str, dict] = {}
+    html_sections: list[str] = []
+
+    for state in sorted(df["state"].unique()):
+        state_df = df[df["state"] == state]
+
+        try:
+            reference_df, current_df = split_reference_current(
+                state_df,
+                current_months=current_months,
+                reference_months=reference_months,
+            )
+        except ValueError as exc:
+            results[state] = {"drift": False, "score": 0.0, "error": str(exc)}
+            continue
+
+        if reference_df.empty or current_df.empty:
+            results[state] = {
+                "drift": False,
+                "score": 0.0,
+                "error": "empty reference or current window",
+            }
+            continue
+
+        ref_slim = reference_df[[column]].reset_index(drop=True)
+        cur_slim = current_df[[column]].reset_index(drop=True)
+
+        report = Report(metrics=[DataDriftPreset()])
+        report.run(reference_data=ref_slim, current_data=cur_slim)
+        result = report.as_dict()["metrics"][0]["result"]
+
+        results[state] = {
+            "drift": bool(result["dataset_drift"]),
+            "score": float(result["share_of_drifted_columns"]),
+        }
+
+        html_sections.append(f"<h2>{state}</h2>\n{report.get_html()}")
+
+    combined_html = "<html><body>\n" + "\n<hr/>\n".join(html_sections) + "\n</body></html>"
+
+    return results, combined_html
