@@ -189,9 +189,10 @@ def invalidate_api_cache_task() -> dict:
     logger = get_run_logger()
     base = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
     url = f"{base}/admin/clear-cache"
+    headers = {"X-Admin-Token": os.getenv("ADMIN_TOKEN", "")}
 
     try:
-        response = httpx.post(url, timeout=10.0)
+        response = httpx.post(url, headers=headers, timeout=10.0)
         response.raise_for_status()
         result = response.json()
         logger.info(f"API cache cleared: {result}")

@@ -1,7 +1,9 @@
 """FastAPI application entrypoint for the BundesHost API."""
 
+import os
+
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from bundeshost.api.schemas import (
@@ -177,12 +179,25 @@ def summary() -> SummaryResponse:
 
 
 @app.post("/admin/clear-cache")
-def clear_cache() -> dict[str, str | int]:
+def clear_cache(x_admin_token: str | None = Header(default=None)) -> dict[str, str | int]:
     """Clear the in-memory model cache.
 
     Called by the Prefect retrain flow after promoting new models so the API
     serves the new versions on the next request instead of the cached old ones.
+
+    Protected by a shared secret. The caller must send the ADMIN_TOKEN value
+    in the 'X-Admin-Token' header. If ADMIN_TOKEN is not configured on the
+    server, the endpoint is disabled (503) rather than left open.
     """
+    expected = os.getenv("ADMIN_TOKEN")
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin endpoint disabled: ADMIN_TOKEN is not configured.",
+        )
+    if x_admin_token != expected:
+        raise HTTPException(status_code=401, detail="Invalid or missing admin token.")
+
     from bundeshost.modeling.predict import _MODEL_CACHE
 
     n_before = len(_MODEL_CACHE)
