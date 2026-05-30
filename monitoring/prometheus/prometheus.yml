@@ -1,0 +1,12 @@
+# Prometheus scrape configuration for the BundesHost stack.
+# Scrapes the FastAPI /metrics endpoint exposed by prometheus-fastapi-instrumentator.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "bundeshost-api"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["api:8000"]
