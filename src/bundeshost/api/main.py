@@ -83,14 +83,32 @@ def forecast(
     except FileNotFoundError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
 
-    # Tag each point as 'backfill' or 'future' based on its date
+    # Latest month for which we already have REAL data in the DB.
+    series = build_state_series(get_tourism_data(), state).sort_index()
+    max_hist = pd.to_datetime(
+        series.index.to_timestamp()[-1]
+        if hasattr(series.index, "to_timestamp")
+        else series.index[-1]
+    )
+
+    def _tag(d: pd.Timestamp) -> str:
+        # backfill_validated: model predicted it AND we now have real data
+        #   for that month (a live backtest of the model).
+        # backfill: predicted, but no real data yet (the true gap).
+        # future: today onwards.
+        if d <= max_hist:
+            return "backfill_validated"
+        if d < today:
+            return "backfill"
+        return "future"
+
     points = [
         ForecastPoint(
             date=row["date"].date(),
             forecast=float(row["forecast"]),
             lower_ci=float(row["lower_ci"]),
             upper_ci=float(row["upper_ci"]),
-            type="backfill" if row["date"] < today else "future",
+            type=_tag(row["date"]),
         )
         for _, row in forecast_df.iterrows()
     ]

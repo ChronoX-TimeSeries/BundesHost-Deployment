@@ -43,6 +43,7 @@ GREEN_BG = "#F0FDF4"
 GREEN_BORDER = "#86EFAC"
 
 AMBER = "#D97706"
+PURPLE = "#7C3AED"  # backfill_validated: model prediction vs actual
 AMBER_BG = "#FFFBEB"
 AMBER_BORDER = "#FCD34D"
 
@@ -438,6 +439,7 @@ def make_forecast_chart(history_df, fcast_df, state, horizon):
     # --------------------------------------------------
     # Split forecast
 
+    validated_df = fcast_df[fcast_df["type"] == "backfill_validated"]
     backfill_df = fcast_df[fcast_df["type"] == "backfill"]
     future_df = fcast_df[fcast_df["type"] == "future"]
 
@@ -445,13 +447,58 @@ def make_forecast_chart(history_df, fcast_df, state, horizon):
     last_hist_value = float(hvalues.iloc[-1])
 
     # --------------------------------------------------
-    # Connector 1: last historical -> first backfill (amber line, no marker)
+    # Connector 1: last historical -> first forecast point (validated if it
+    # exists, otherwise the gap backfill). Colored to match the segment it
+    # leads into.
 
-    if not backfill_df.empty:
+    if not validated_df.empty:
+        first_seg_df, first_color = validated_df, PURPLE
+    elif not backfill_df.empty:
+        first_seg_df, first_color = backfill_df, AMBER
+    else:
+        first_seg_df, first_color = None, None
+
+    if first_seg_df is not None:
         fig.add_trace(
             go.Scatter(
-                x=[last_hist_date, backfill_df["date"].iloc[0]],
-                y=[last_hist_value, float(backfill_df["forecast"].iloc[0])],
+                x=[last_hist_date, first_seg_df["date"].iloc[0]],
+                y=[last_hist_value, float(first_seg_df["forecast"].iloc[0])],
+                mode="lines",
+                line=dict(color=first_color, width=2.5, dash="dash"),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    # --------------------------------------------------
+    # Backfill (validated) segment: model predicted these months and we now
+    # have real data for them — a live backtest. Purple dashed.
+
+    connector_last_date = last_hist_date
+    connector_last_value = last_hist_value
+
+    if not validated_df.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=validated_df["date"],
+                y=validated_df["forecast"],
+                mode="lines+markers",
+                name="Model prediction (vs actual)",
+                line=dict(color=PURPLE, width=2.5, dash="dash"),
+                marker=dict(size=5, color=PURPLE),
+            )
+        )
+        connector_last_date = validated_df["date"].iloc[-1]
+        connector_last_value = float(validated_df["forecast"].iloc[-1])
+
+    # --------------------------------------------------
+    # Connector: last validated -> first gap backfill (amber line, no marker)
+
+    if not validated_df.empty and not backfill_df.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=[connector_last_date, backfill_df["date"].iloc[0]],
+                y=[connector_last_value, float(backfill_df["forecast"].iloc[0])],
                 mode="lines",
                 line=dict(color=AMBER, width=2.5, dash="dash"),
                 showlegend=False,
@@ -460,7 +507,7 @@ def make_forecast_chart(history_df, fcast_df, state, horizon):
         )
 
     # --------------------------------------------------
-    # Backfill segment (amber dashed)
+    # Backfill (gap) segment (amber dashed)
 
     if not backfill_df.empty:
         fig.add_trace(
@@ -475,9 +522,6 @@ def make_forecast_chart(history_df, fcast_df, state, horizon):
         )
         connector_last_date = backfill_df["date"].iloc[-1]
         connector_last_value = float(backfill_df["forecast"].iloc[-1])
-    else:
-        connector_last_date = last_hist_date
-        connector_last_value = last_hist_value
 
     # --------------------------------------------------
     # Connector 2: last backfill -> first future (navy line, no marker)
