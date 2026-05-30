@@ -213,15 +213,18 @@ def invalidate_api_cache_task() -> dict:
 
 @task(retries=0, name="drift-report")
 def drift_report_task() -> dict:
-    """Generate a data-drift HTML report and log it as an MLflow artifact.
+    """Generate a per-state data-drift report and log it to MLflow.
 
-    Reads the latest mart data via pipeline.get_tourism_data(), splits it
-    into a reference window (24 months) and a current window (12 months),
-    runs Evidently's DataDriftPreset on arrivals, and logs the resulting
-    HTML to MLflow under experiment 'bundeshost-monitoring'.
+    Reads the latest mart data via pipeline.get_tourism_data(), then for each
+    state slices a reference window (24 months) and a current window (12
+    months) and runs Evidently's DataDriftPreset on arrivals. Logs to MLflow
+    under experiment 'bundeshost-monitoring': a per_state_drift.json artifact
+    (the results dict), an n_drifted_states metric, and the combined HTML
+    report.
 
-    Returns a dict with status and (if successful) the MLflow run URL.
-    Never raises — drift reporting must not fail the retrain flow.
+    Returns a dict with status, run_id, n_drifted_states, and the list of
+    drifted_states. Never raises — drift reporting must not fail the retrain
+    flow.
     """
     logger = get_run_logger()
 
@@ -232,22 +235,35 @@ def drift_report_task() -> dict:
         import mlflow
 
         from bundeshost.data.pipeline import get_tourism_data
-        from bundeshost.monitoring.drift import generate_drift_report
+        from bundeshost.monitoring.drift import generate_per_state_drift
 
         logger.info("Loading tourism data for drift report")
         df = get_tourism_data()
 
-        logger.info("Generating Evidently data-drift report (arrivals)")
-        html = generate_drift_report(df)
+        logger.info("Generating per-state Evidently data-drift report (arrivals)")
+        results, html = generate_per_state_drift(df)
+
+        drifted_states = [s for s, info in results.items() if info.get("drift")]
+        logger.info(
+            f"Drift detected in {len(drifted_states)}/{len(results)} states: "
+            f"{drifted_states or 'none'}"
+        )
 
         mlflow.set_experiment("bundeshost-monitoring")
         with mlflow.start_run(run_name="drift-report") as run:
+            mlflow.log_dict(results, "per_state_drift.json")
+            mlflow.log_metric("n_drifted_states", len(drifted_states))
             with tempfile.TemporaryDirectory() as tmp:
                 path = Path(tmp) / "drift_report.html"
                 path.write_text(html)
                 mlflow.log_artifact(str(path))
             logger.info(f"Drift report logged to MLflow run {run.info.run_id}")
-            return {"status": "ok", "run_id": run.info.run_id}
+            return {
+                "status": "ok",
+                "run_id": run.info.run_id,
+                "n_drifted_states": len(drifted_states),
+                "drifted_states": drifted_states,
+            }
 
     except Exception as e:
         logger.warning(f"Drift report failed ({e!r}); continuing flow.")

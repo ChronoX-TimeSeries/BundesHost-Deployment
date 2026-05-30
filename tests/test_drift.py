@@ -5,7 +5,11 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from bundeshost.monitoring.drift import generate_drift_report, split_reference_current
+from bundeshost.monitoring.drift import (
+    generate_drift_report,
+    generate_per_state_drift,
+    split_reference_current,
+)
 
 
 def _make_df(months: int = 60, states: int = 2) -> pd.DataFrame:
@@ -70,3 +74,37 @@ def test_generate_drift_report_raises_if_no_numeric_columns():
     df = _make_df(months=48, states=2)
     with pytest.raises(ValueError, match="Columns not found"):
         generate_drift_report(df, columns=["nonexistent"])
+
+
+def test_per_state_drift_returns_dict_and_html():
+    """Returns a (results, html) tuple: dict keyed by state + combined HTML."""
+    df = _make_df(months=48, states=3)
+    results, html = generate_per_state_drift(df)
+    assert isinstance(results, dict)
+    assert isinstance(html, str)
+    # one entry per state
+    assert set(results.keys()) == {"State0", "State1", "State2"}
+
+
+def test_per_state_drift_each_state_has_drift_and_score():
+    """Every state entry has a bool 'drift' and a float 'score'."""
+    df = _make_df(months=48, states=3)
+    results, _ = generate_per_state_drift(df)
+    for state, info in results.items():
+        assert isinstance(info["drift"], bool)
+        assert isinstance(info["score"], float)
+
+
+def test_per_state_drift_html_has_section_per_state():
+    """The combined HTML contains one <h2> heading per state."""
+    df = _make_df(months=48, states=3)
+    _, html = generate_per_state_drift(df)
+    assert html.count("<h2>") == 3
+    assert "State0" in html and "State1" in html and "State2" in html
+
+
+def test_per_state_drift_raises_without_state_column():
+    """If there is no 'state' column, raise."""
+    df = _make_df(months=48, states=1).drop(columns=["state"])
+    with pytest.raises(ValueError, match="state"):
+        generate_per_state_drift(df)
