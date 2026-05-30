@@ -178,3 +178,39 @@ def test_summary_state_item_has_required_fields():
     item = response.json()["states"][0]
     assert set(item.keys()) == {"state", "latest_arrivals"}
     assert isinstance(item["latest_arrivals"], float)
+
+
+# ==================================================
+# /admin/clear-cache  (auth)
+# ==================================================
+
+
+def test_clear_cache_503_when_token_not_configured(monkeypatch):
+    """If ADMIN_TOKEN is not set on the server, the endpoint is disabled."""
+    monkeypatch.delenv("ADMIN_TOKEN", raising=False)
+    response = client.post("/admin/clear-cache")
+    assert response.status_code == 503
+
+
+def test_clear_cache_401_without_token(monkeypatch):
+    """With ADMIN_TOKEN configured but no header sent, reject."""
+    monkeypatch.setenv("ADMIN_TOKEN", "secret-test-token")
+    response = client.post("/admin/clear-cache")
+    assert response.status_code == 401
+
+
+def test_clear_cache_401_with_wrong_token(monkeypatch):
+    """A wrong token is rejected."""
+    monkeypatch.setenv("ADMIN_TOKEN", "secret-test-token")
+    response = client.post("/admin/clear-cache", headers={"X-Admin-Token": "nope"})
+    assert response.status_code == 401
+
+
+def test_clear_cache_200_with_correct_token(monkeypatch):
+    """The correct token clears the cache and returns the evicted count."""
+    monkeypatch.setenv("ADMIN_TOKEN", "secret-test-token")
+    response = client.post("/admin/clear-cache", headers={"X-Admin-Token": "secret-test-token"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "cleared"
+    assert isinstance(body["models_evicted"], int)

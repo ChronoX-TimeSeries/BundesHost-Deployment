@@ -153,19 +153,22 @@ def test_invalidate_api_cache_unreachable_does_not_raise():
 # ---------------------------------------------------------------------------
 
 
-def test_admin_clear_cache_endpoint():
-    """POST /admin/clear-cache returns the count of evicted models."""
+def test_admin_clear_cache_endpoint(monkeypatch):
+    """POST /admin/clear-cache (with the admin token) returns the evicted count."""
     from fastapi.testclient import TestClient
 
     from bundeshost.api.main import app
     from bundeshost.modeling.predict import _MODEL_CACHE
+
+    monkeypatch.setenv("ADMIN_TOKEN", "secret-test-token")
+    headers = {"X-Admin-Token": "secret-test-token"}
 
     # Seed the cache so we have something to evict
     _MODEL_CACHE["Hamburg"] = ("dummy_model", "Hamburg_sarimax")
     _MODEL_CACHE["Berlin"] = ("dummy_model", "Berlin_sarima")
 
     client = TestClient(app)
-    response = client.post("/admin/clear-cache")
+    response = client.post("/admin/clear-cache", headers=headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -173,5 +176,5 @@ def test_admin_clear_cache_endpoint():
     assert body["models_evicted"] == 2
 
     # Re-clear: should now be 0
-    response2 = client.post("/admin/clear-cache")
+    response2 = client.post("/admin/clear-cache", headers=headers)
     assert response2.json()["models_evicted"] == 0
