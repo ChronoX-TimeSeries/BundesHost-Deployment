@@ -253,6 +253,10 @@ st.markdown(
     background: linear-gradient(90deg, {NAVY} 50%, transparent 50%);
     background-size: 8px 3px;
   }}
+  .bh-legend-line-dashed-purple {{
+    background: linear-gradient(90deg, {PURPLE} 50%, transparent 50%);
+    background-size: 8px 3px;
+  }}
 
   /* ── Section label ── */
   .bh-section {{
@@ -451,9 +455,10 @@ def make_forecast_chart(history_df, fcast_df, state, horizon):
     # exists, otherwise the gap backfill). Colored to match the segment it
     # leads into.
 
-    if not validated_df.empty:
-        first_seg_df, first_color = validated_df, PURPLE
-    elif not backfill_df.empty:
+    # Only connect into the gap backfill (amber). The validated segment
+    # (purple) is left detached on purpose: it is a backtest of the model
+    # against real data, not a continuation of the historical line.
+    if validated_df.empty and not backfill_df.empty:
         first_seg_df, first_color = backfill_df, AMBER
     else:
         first_seg_df, first_color = None, None
@@ -835,6 +840,10 @@ if analyze:
                 <div class="bh-legend-item">
                     <div class="bh-legend-line bh-legend-line-solid"></div>
                     <span>Historical (real data)</span>
+                </div>
+                <div class="bh-legend-item">
+                    <div class="bh-legend-line bh-legend-line-dashed-purple"></div>
+                    <span>Model prediction (months we now have data for)</span>
                 </div>
                 <div class="bh-legend-item">
                     <div class="bh-legend-line bh-legend-line-dashed-amber"></div>
