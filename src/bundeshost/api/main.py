@@ -2,6 +2,7 @@
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from bundeshost.api.schemas import (
     ForecastPoint,
@@ -22,6 +23,10 @@ app = FastAPI(
     description="Tourism forecasting and hosting capacity analysis for German states.",
     version="0.1.0",
 )
+
+# Prometheus metrics: instruments every route (request count, latency,
+# in-progress, per-handler) and exposes them at GET /metrics for scraping.
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/health")
