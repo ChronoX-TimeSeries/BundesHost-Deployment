@@ -17,19 +17,26 @@ from mlflow.tracking import MlflowClient
 # ==================================================
 
 
+PRODUCTION_ALIAS = "production"
+
+
 def get_production_version(client: MlflowClient, registered_name: str) -> ModelVersion | None:
-    """Return the current Production version of a registered model, or None.
+    """Return the version currently aliased '@production', or None.
 
     Returns None if the model is not registered yet, or if it has no
-    Production version.
+    version carrying the production alias.
     """
     try:
-        versions = client.get_latest_versions(registered_name, stages=["Production"])
+        return client.get_model_version_by_alias(registered_name, PRODUCTION_ALIAS)
     except RestException as e:
-        if "RESOURCE_DOES_NOT_EXIST" in str(e):
+        msg = str(e)
+        if (
+            "RESOURCE_DOES_NOT_EXIST" in msg
+            or "INVALID_PARAMETER_VALUE" in msg
+            or "not found" in msg.lower()
+        ):
             return None
         raise
-    return versions[0] if versions else None
 
 
 def get_production_mape(client: MlflowClient, registered_name: str) -> float | None:
@@ -69,16 +76,16 @@ def promote_to_production(
     version: str,
     mape: float,
 ) -> None:
-    """Promote a version to Production and tag it with its MAPE.
+    """Point the '@production' alias at a version and tag it with its MAPE.
 
-    Archives any previous Production version so that get_latest_versions
-    keeps returning a single Production entry.
+    The alias is unique per registered model: reassigning it automatically
+    moves it off whatever version held it before, so there is no separate
+    "archive previous" step to perform.
     """
-    client.transition_model_version_stage(
+    client.set_registered_model_alias(
         name=registered_name,
+        alias=PRODUCTION_ALIAS,
         version=version,
-        stage="Production",
-        archive_existing_versions=True,
     )
     client.set_model_version_tag(
         name=registered_name,

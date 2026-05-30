@@ -44,27 +44,26 @@ def load_model(state_name):
         return _MODEL_CACHE[state_name]
 
     registered_name = f"bundeshost-{state_name}"
-    model_uri = f"models:/{registered_name}/Production"
+    model_uri = f"models:/{registered_name}@production"
 
     client = MlflowClient()
     try:
-        versions = client.get_latest_versions(registered_name, stages=["Production"])
+        version = client.get_model_version_by_alias(registered_name, "production")
     except RestException as e:
-        if "RESOURCE_DOES_NOT_EXIST" in str(e):
-            raise KeyError(
-                f"No registered model found for state '{state_name}' "
-                f"(expected name '{registered_name}'). "
-                f"Run `python -m bundeshost.modeling.train` to create it."
+        msg = str(e)
+        if (
+            "RESOURCE_DOES_NOT_EXIST" in msg
+            or "INVALID_PARAMETER_VALUE" in msg
+            or "not found" in msg.lower()
+        ):
+            raise FileNotFoundError(
+                f"No '@production' model found for {registered_name}. "
+                f"Run `python scripts/promote_all_to_production.py` to seed it, "
+                f"or `python -m bundeshost.modeling.train` if it isn't registered yet."
             ) from e
         raise
 
-    if not versions:
-        raise FileNotFoundError(
-            f"No Production version found for {registered_name}. "
-            f"Run `python scripts/promote_all_to_production.py` to seed it."
-        )
-
-    variant = versions[0].tags.get("variant", "sarima")
+    variant = version.tags.get("variant", "sarima")
     model = mlflow.statsmodels.load_model(model_uri)
 
     model_name = f"{state_name}_{variant}"
