@@ -17,7 +17,7 @@ class ForecastPoint(BaseModel):
     forecast: float
     lower_ci: float
     upper_ci: float
-    type: Literal["backfill", "future"]
+    type: Literal["backfill_validated", "backfill", "future"]
 
 
 class ForecastResponse(BaseModel):
