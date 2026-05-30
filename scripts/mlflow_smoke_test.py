@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def main() -> int:
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
     username = os.getenv("MLFLOW_TRACKING_USERNAME")
